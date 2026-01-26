@@ -129,7 +129,6 @@
 
 import { useRef, useState } from 'react';
 import { CrossIcon } from '../../icons/CrossIcon.tsx';
-import { Button } from './Button.tsx';
 import { Input } from './Input.tsx';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config.ts';
