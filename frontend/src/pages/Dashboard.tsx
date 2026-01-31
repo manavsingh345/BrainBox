@@ -224,17 +224,9 @@ export function Dashboard() {
         )}
 
         {selectedType !== 'chat' && (
-          <div className="flex flex-col gap-8">
-            <div
-  key={currentPage}
-  className={`
-    transition-all duration-300 ease-out
-    ${direction === 'next'
-      ? 'animate-slide-left'
-      : 'animate-slide-right'}
-  `}
->
-  <div className={`flex flex-wrap ${sidebaropen ? "px-8 gap-10" : "gap-2"}`}>
+          <div className="flex flex-col gap-8 overflow-hidden">
+            <div key={currentPage} className={`transition-all duration-300 ease-out ${direction === 'next' ? 'animate-slide-left': 'animate-slide-right'}`}>
+        <div className={`flex flex-wrap ${sidebaropen ? "px-8 gap-10" : "gap-2"}`}>
           {filteredContents.length > 0 ? (
             paginatedContents.map(({ type, link, title, _id }) => (
               <Card
