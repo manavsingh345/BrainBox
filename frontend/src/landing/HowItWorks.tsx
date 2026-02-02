@@ -18,7 +18,7 @@ const steps = [
     number: "03",
     icon: MessageCircle,
     title: "Chat & Discover",
-    description: "Ask questions, get summaries, find connections. Your second brain remembers everything.",
+    description: "Ask questions, get summaries, find connections. Your BrainBox remembers everything.",
   },
 ];
 

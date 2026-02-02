@@ -58,7 +58,7 @@ export const Features = () => {
             Superpowers for Your <span className="text-primary">Knowledge</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            More than bookmarking. SecondBrain transforms how you learn, research, and create.
+            More than bookmarking. BrainBox transforms how you learn, research, and create.
           </p>
         </motion.div>
 

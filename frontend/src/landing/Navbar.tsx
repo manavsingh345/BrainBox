@@ -30,7 +30,7 @@ export const Navbar = () => {
               <div className="p-1.5 rounded-lg bg-primary">
                 <Brain className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-lg">SecondBrain</span>
+              <span className="font-bold text-lg">BrainBox</span>
             </a>
 
             {/* Desktop Navigation */}
@@ -48,10 +48,10 @@ export const Navbar = () => {
 
             {/* Desktop CTAs */}
             <div className="hidden md:flex items-center gap-4">
-              <Button2 variant="ghost" size="sm" onClick={handleLogin}>
+              <Button2 variant="ghost" size="sm" onClick={handleLogin} className="cursor-pointer">
                 Log in
               </Button2>
-              <Button2 variant="default" size="sm" onClick={handleSinup}>
+              <Button2 variant="default" size="sm" onClick={handleSinup} className="cursor-pointer">
                 Get Started
               </Button2>
             </div>
@@ -92,7 +92,7 @@ export const Navbar = () => {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button2 variant="ghost" className="justify-start" onClick={handleLogin}>
+                <Button2 variant="ghost" className="justify-start" onClick={handleLogin}> 
                   Log in
                 </Button2>
                 <Button2 variant="default" onClick={handleSinup}>

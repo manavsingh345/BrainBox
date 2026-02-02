@@ -38,7 +38,7 @@ export const CTASection = () => {
               <h2 className="text-3xl md:text-5xl font-bold mb-4">
                 Ready to Build Your
                 <br />
-                <span className="text-primary">Second Brain?</span>
+                <span className="text-primary">BrainBox</span>
               </h2>
               <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8">
                 Join thousands of learners, researchers, and creators who never forget what matters.

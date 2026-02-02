@@ -40,7 +40,7 @@ export const ContentTypes = () => {
             Save <span className="text-primary">Anything</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Import content from any platform. SecondBrain automatically organizes and makes it searchable.
+            Import content from any platform. BrainBox automatically organizes and makes it searchable.
           </p>
         </motion.div>
 

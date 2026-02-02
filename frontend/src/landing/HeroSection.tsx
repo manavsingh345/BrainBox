@@ -2,8 +2,14 @@ import { motion } from "framer-motion";
 import { Button2 } from "../component/UI/Button2";
 import { NeuralNetwork } from "./NeuralNetwork";
 import { Brain, Sparkles, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const HeroSection = () => {
+  const navigate=useNavigate();
+    
+    const handleSinup=()=>{
+        navigate("/signup");
+    }
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden ">
       {/* Grid background */}
@@ -95,7 +101,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Button2 variant="hero" size="xl" className="group">
+            <Button2 variant="hero" size="xl" className="group" onClick={handleSinup}>
               <Brain className="w-5 h-5" />
               Start Building Your Brain
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

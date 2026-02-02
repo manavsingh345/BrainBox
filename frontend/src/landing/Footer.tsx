@@ -11,7 +11,7 @@ export const Footer = () => {
               <div className="p-1.5 rounded-lg bg-primary">
                 <Brain className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-bold">SecondBrain</span>
+              <span className="font-bold">BrainBox</span>
             </a>
             <p className="text-muted-foreground text-sm max-w-xs mb-4">
               The auto-organizing AI knowledge base for everything you want to remember.
@@ -49,7 +49,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} SecondBrain. All rights reserved.
+          © {new Date().getFullYear()} BrainBox. All rights reserved.
         </div>
       </div>
     </footer>
