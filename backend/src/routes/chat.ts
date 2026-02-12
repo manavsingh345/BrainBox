@@ -316,7 +316,7 @@ router.post("/upload/link", authMiddleware, async (req, res) => {
         threadId: Date.now().toString(),
         title: "Link Chat",
         messages: [],
-        linkId: [link._id],
+        linkIds: [link._id],
         userId
       });
     }
@@ -392,14 +392,14 @@ router.post("/chat1", authMiddleware,async (req, res) => {
       if (hasPDFs || hasYoutube || hasLinks) {
         console.log("Context found → using Gemini with vector search");
         const embeddings = new GoogleGenerativeAIEmbeddings({
-                 model: "text-embedding-004",
-                 apiKey: process.env.GEMINI_RAG_KEY || "",
+                 model: process.env.GENAI_EMBEDDING_MODEL || "gemini-embedding-001",
+                 apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
         });
 
       const vectorStore = await QdrantVectorStore.fromExistingCollection(
         embeddings,
         {
-          url: "http://localhost:6333",
+          url: process.env.QDRANT_URL || "http://localhost:6333",
           collectionName: `user_${req.userId}`,
         }
       );
@@ -477,7 +477,7 @@ router.post("/chat1", authMiddleware,async (req, res) => {
       // 3 Gemini chat
       const model = new ChatGoogleGenerativeAI({
         model: "gemini-2.5-flash",
-        apiKey: process.env.GEMINI_RAG_KEY || "",
+        apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
       });
 
       const response = await model.invoke([

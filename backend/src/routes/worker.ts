@@ -126,6 +126,9 @@ const worker = new Worker(
       console.log("Loader returned docs count:", Array.isArray(docs) ? docs.length : 0);
     } catch (err) {
       console.error("Error loading/ parsing file:", err);
+      if (type === "pdf" && pdfId) {
+        await PDFfile.findByIdAndUpdate(pdfId, { embedded: false }).catch(() => {});
+      }
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
       return;
     }
@@ -190,8 +193,9 @@ const worker = new Worker(
 
     // Step 5: embeddings + Qdrant
     const embeddings = new GoogleGenerativeAIEmbeddings({
-      model: process.env.GENAI_EMBEDDING_MODEL || "text-embedding-004",
-      apiKey: process.env.GEMINI_API_KEY || process.env.GEMINI_RAG_KEY || "",
+      // Keep model configurable, but default to a model verified in this environment.
+      model: process.env.GENAI_EMBEDDING_MODEL || "gemini-embedding-001",
+      apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
     });
 
     const collectionName = `user_${userId}`;
