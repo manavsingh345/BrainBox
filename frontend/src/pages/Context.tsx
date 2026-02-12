@@ -4,6 +4,8 @@ type Chat = {
   content: string;
   fileUrl?: string;
   fileName?: string;
+  linkUrl?: string;
+  videoUrl?: string;
 };
 interface Thread {
   threadId: string;

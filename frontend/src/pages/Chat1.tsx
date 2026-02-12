@@ -1,69 +1,91 @@
 import { MyContext } from "./Context"
-import { useContext, useEffect, useState } from "react"
+import { useContext, useEffect, useMemo, useRef, useState } from "react"
 import "./Chat1.css"
 import ResponseRenderer from "./ResponseRender"
 
 export default function Chat1(){
-    const {newChat,prevChats,reply} = useContext(MyContext);
-    const [latestReply,setLatestReply]=useState("");
+    const {newChat,prevChats} = useContext(MyContext);
+    const [typedAssistantMessage, setTypedAssistantMessage] = useState("");
+    const [typingChatIndex, setTypingChatIndex] = useState<number | null>(null);
+    const prevLengthRef = useRef(0);
 
-    useEffect(()=>{
-        if(reply===""){
-            setLatestReply("");     //prevChats ko load kar rhe hai
-            return;
+    const lastAssistantIndex = useMemo(() => {
+      for (let i = (prevChats?.length ?? 0) - 1; i >= 0; i -= 1) {
+        if (prevChats[i]?.role === "assistant") return i;
+      }
+      return -1;
+    }, [prevChats]);
+
+    useEffect(() => {
+      const currentLength = prevChats?.length ?? 0;
+      const previousLength = prevLengthRef.current;
+      prevLengthRef.current = currentLength;
+
+      if (currentLength <= previousLength || lastAssistantIndex < 0) return;
+
+      // Avoid replaying typing animation when loading long existing history.
+      if (currentLength - previousLength > 2) {
+        setTypingChatIndex(null);
+        setTypedAssistantMessage("");
+        return;
+      }
+
+      const latestAssistant = prevChats[lastAssistantIndex]?.content ?? "";
+      setTypingChatIndex(lastAssistantIndex);
+      setTypedAssistantMessage("");
+
+      let cursor = 0;
+      const timer = window.setInterval(() => {
+        cursor += 1;
+        setTypedAssistantMessage(latestAssistant.slice(0, cursor));
+        if (cursor >= latestAssistant.length) {
+          window.clearInterval(timer);
+          setTypingChatIndex(null);
         }
-        if(!prevChats.length) return;
+      }, 12);
 
-        const content=reply.split(" ");
-        let idx=0;
-        const interval=setInterval(()=>{
-            setLatestReply(content.slice(0,idx+1).join(" "));
-            idx++;
-
-            if(idx>=content.length) clearInterval(interval);
-        },40);
-        return () => clearInterval(interval);
-    },[prevChats,reply]);
+      return () => window.clearInterval(timer);
+    }, [lastAssistantIndex, prevChats]);
     
     return (
         <>
         {newChat && <h1 className="text-3xl pt-10">BrainBox Welcome's you!</h1>}
         <div className="chats w-full">
             {
-                prevChats?.slice(0,-1).map((chat,idx)=>
+                prevChats?.map((chat,idx)=>
                 <div className={chat.role==="user" ? "userDiv" : "gptDiv"} key={idx}>
                    {chat.role==="user" ? 
-                <div>
+                <div className="userBlock">
                     {chat.fileUrl && (
                 <a
                     href={chat.fileUrl}
                     target="_blank"
-                    className="inline-flex items-center gap-2 bg-gray-200 px-2 py-1 rounded-lg text-sm shadow mb-1"
+                    rel="noopener noreferrer"
+                    className="attachmentCard"
                 >
-                <i className="fa-solid fa-file text-gray-700"></i>
-                <span className="max-w-[140px] truncate">{chat.fileName}</span>
+                <i className="fa-solid fa-file-lines text-slate-600"></i>
+                <span className="attachmentName">{chat.fileName || "Uploaded file"}</span>
                 </a>
                 )}
-                <p className="userMessage">{chat.content}</p>
+                {chat.linkUrl && (
+                <a
+                    href={chat.linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="attachmentCard"
+                >
+                <i className="fa-solid fa-link text-slate-600"></i>
+                <span className="attachmentName">{chat.linkUrl}</span>
+                </a>
+                )}
+                {chat.content?.trim() && <p className="userMessage">{chat.content}</p>}
                 </div>: 
                     <div className="prose max-w-none dark:prose-invert">
-                    <ResponseRenderer content={chat.content} />
+                    <ResponseRenderer content={typingChatIndex === idx ? typedAssistantMessage : chat.content} />
                 </div>
                     }
                 </div>
             )
-            }
-            {
-                prevChats.length>0 && latestReply!=="" && 
-                <div className="gptDiv" key={"typing"}>
-                    <ResponseRenderer content={latestReply}/>
-                </div>
-            }
-            {
-                prevChats.length>0 && latestReply ==="" &&          //store the last reply answer also to display
-                <div className="gptDiv" key={"non-typing"}>
-                    <ResponseRenderer content={prevChats[prevChats.length-1].content}/>    
-                </div>
             }
             
         </div>

@@ -231,7 +231,7 @@ const uploadLinkByUrl = async (url: string) => {
   try {
     setLoader(true);
 
-    await fetch("http://localhost:3000/api/v1/upload/link", {
+    const res = await fetch("http://localhost:3000/api/v1/upload/link", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -243,11 +243,18 @@ const uploadLinkByUrl = async (url: string) => {
       })
     });
 
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Failed to upload link");
+      return;
+    }
+
+    setReply("");
     setprevChats(prev => [
       ...prev,
       {
         role: "user",
-        content: url,
+        content: "",
         linkUrl: url
       }
     ]);
