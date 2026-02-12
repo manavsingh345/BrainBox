@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 const navLinks = [
   { label: "Features", href: "#feature" },
   { label: "How it Works", href: "#howitworks" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Pricing", href: "/pricing" },
 ];
 
 export const Navbar = () => {
