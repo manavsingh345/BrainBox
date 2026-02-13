@@ -131,7 +131,6 @@
  //  <div className={`absolute left-1/2 -translate-x-1/2 ${sidebaropen ? "min-w-5xl" : "min-w-2xl"}`}></div>
 import { useRef, useState } from 'react';
 import { CrossIcon } from '../../icons/CrossIcon.tsx';
-import { Input } from './Input.tsx';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config.ts';
 import { YoutubeIcon } from '../../icons/YoutubeIcon.tsx';
@@ -147,7 +146,39 @@ enum ContentType {
   Links = "links"
 }
 
-export function CreateContentModel({ open, onClose }: any) {
+interface CreateContentModelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const typeOptions = [
+  {
+    value: ContentType.Youtube,
+    label: "YouTube",
+    icon: <YoutubeIcon />,
+    activeClass: "border-rose-300 bg-rose-50 text-rose-700"
+  },
+  {
+    value: ContentType.Twitter,
+    label: "Twitter",
+    icon: <TwitterIcon />,
+    activeClass: "border-sky-300 bg-sky-50 text-sky-700"
+  },
+  {
+    value: ContentType.Document,
+    label: "Document",
+    icon: <Document />,
+    activeClass: "border-slate-300 bg-slate-100 text-slate-700"
+  },
+  {
+    value: ContentType.Links,
+    label: "Links",
+    icon: <LinkIcon />,
+    activeClass: "border-emerald-300 bg-emerald-50 text-emerald-700"
+  }
+];
+
+export function CreateContentModel({ open, onClose }: CreateContentModelProps) {
     const titleRef = useRef<HTMLInputElement | null>(null);
     const linkRef = useRef<HTMLInputElement | null>(null);
     const textRef= useRef<HTMLTextAreaElement | null>(null);
@@ -177,136 +208,106 @@ export function CreateContentModel({ open, onClose }: any) {
   }
 }
 
+  if (!open) return null;
 
   return (
-  <div>
-    {open && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-30 backdrop-blur-sm animate-fadeIn">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-8 m-4 transform transition-all animate-slideUp">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex-1">
-              <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-                Add New Content
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Save and organize your favorite content</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
-            >
-              <CrossIcon />
-            </button>
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+    onClick={onClose}
+  >
+    <div
+      className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_25px_70px_rgba(15,23,42,0.35)]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="h-1.5 w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500" />
+
+      <div className="p-6 sm:p-8">
+        <div className="mb-7 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Add Content</h2>
+            <p className="mt-1 text-sm text-slate-500">Capture links, notes, and resources to your workspace.</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-800"
+            aria-label="Close add content modal"
+          >
+            <CrossIcon />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Title</label>
+            <input
+              ref={titleRef}
+              type="text"
+              placeholder="Enter a clear title"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+            />
           </div>
 
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-              <Input ref={titleRef} placeholder="Enter a descriptive title..." />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {type === ContentType.Document ? "Content" : "Link"}
-              </label>
-              {type === ContentType.Document ? (
-                <textarea
-                  ref={textRef}
-                  placeholder="Write your note here..."
-                  className="w-full h-40 p-4 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
-                />
-              ) : (
-                <Input ref={linkRef} placeholder="Paste your link here..." />
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Content Type</label>
-              <div className="grid grid-cols-4 gap-3">
-                <button
-                  onClick={() => setType(ContentType.Youtube)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                    type === ContentType.Youtube
-                      ? "border-blue-500 bg-blue-50 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <YoutubeIcon />
-                  <span className={`text-xs font-medium mt-2 ${
-                    type === ContentType.Youtube ? "text-blue-700" : "text-gray-600"
-                  }`}>
-                    YouTube
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setType(ContentType.Twitter)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                    type === ContentType.Twitter
-                      ? "border-blue-500 bg-blue-50 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <TwitterIcon />
-                  <span className={`text-xs font-medium mt-2 ${
-                    type === ContentType.Twitter ? "text-blue-700" : "text-gray-600"
-                  }`}>
-                    Twitter
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setType(ContentType.Document)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                    type === ContentType.Document
-                      ? "border-blue-500 bg-blue-50 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <Document />
-                  <span className={`text-xs font-medium mt-2 ${
-                    type === ContentType.Document ? "text-blue-700" : "text-gray-600"
-                  }`}>
-                    Document
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setType(ContentType.Links)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                    type === ContentType.Links
-                      ? "border-blue-500 bg-blue-50 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <LinkIcon />
-                  <span className={`text-xs font-medium mt-2 ${
-                    type === ContentType.Links ? "text-blue-700" : "text-gray-600"
-                  }`}>
-                    Links
-                  </span>
-                </button>
-              </div>
-            </div>
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              {type === ContentType.Document ? "Document Content" : "Source Link"}
+            </label>
+            {type === ContentType.Document ? (
+              <textarea
+                ref={textRef}
+                placeholder="Paste or write your document content..."
+                className="h-40 w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+              />
+            ) : (
+              <input
+                ref={linkRef}
+                type="url"
+                placeholder="https://example.com"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+              />
+            )}
           </div>
 
-          <div className="mt-8 flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={addContent}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
-            >
-              <SubmitIcon />
-              <span>Save Content</span>
-            </button>
+          <div>
+            <label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-600">Content Type</label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {typeOptions.map((option) => {
+                const isActive = type === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setType(option.value)}
+                    className={`group flex flex-col items-center justify-center rounded-xl border px-3 py-3 text-xs font-semibold transition-all ${
+                      isActive
+                        ? `${option.activeClass} shadow-sm`
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className={`${isActive ? "scale-105" : ""} transition-transform`}>{option.icon}</span>
+                    <span className="mt-2">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl border border-slate-300 px-6 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 sm:w-auto sm:flex-1"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={addContent}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/25 transition-all hover:bg-slate-800 sm:w-auto sm:flex-1"
+          >
+            <SubmitIcon />
+            <span>Save Content</span>
+          </button>
+        </div>
       </div>
-    )}
+    </div>
   </div>
 );
 }

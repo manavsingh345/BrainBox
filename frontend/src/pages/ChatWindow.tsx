@@ -4,9 +4,11 @@ import "./ChatWindow.css";
 import { MyContext } from "./Context";
 import { RingLoader } from "react-spinners";
 import Sidebar1 from "./Sidebar1";
+import { useNavigate } from "react-router-dom";
 
 export default function ChatWindow() {
   const { prompt, setPrompt,reply,setReply, currThreadId,setprevChats,setnewChat} = useContext(MyContext);
+  const navigate = useNavigate();
 
   const [loader, setLoader] = useState<boolean>(false);
   const [uploadedFileurl, setUploadedFileurl] = useState("");
@@ -15,9 +17,33 @@ export default function ChatWindow() {
   const [showMenu, setShowMenu] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState<null | "youtube" | "link">(null);
   const [tempLink, setTempLink] = useState("");
+  const [notice, setNotice] = useState<{ type: "info" | "error"; message: string } | null>(null);
 
 
   const token = localStorage.getItem("token") ?? "";
+
+  const showNotice = (message: string, type: "info" | "error" = "error") => {
+    setNotice({ type, message });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const ensureUploadAccess = () => {
+    const rawUser = localStorage.getItem("user");
+    const parsedUser = rawUser ? JSON.parse(rawUser) : null;
+    const hasUpgrade = Boolean(parsedUser?.isUpgraded);
+
+    if (hasUpgrade) return true;
+
+    setShowMenu(false);
+    setShowLinkInput(null);
+    navigate("/pricing", { state: { reason: "upgrade_required" } });
+    return false;
+  };
 
   // ---------------- CHAT ----------------
   const getReply = async () => {
@@ -53,6 +79,8 @@ export default function ChatWindow() {
 
   // PDF UPLOAD 
   const handleFile = () => {
+    if (!ensureUploadAccess()) return;
+
     const el = document.createElement("input");
     el.type = "file";
     el.accept = ".pdf,.pptx,.docx";
@@ -66,7 +94,7 @@ export default function ChatWindow() {
       formData.append("threadId", currThreadId);
 
       try {
-        const response = await fetch(
+      const response = await fetch(
           "http://localhost:3000/api/v1/upload/pdf",
           {
             method: "POST",
@@ -78,6 +106,14 @@ export default function ChatWindow() {
         );
 
         const data = await response.json();
+        if (!response.ok) {
+          if (data?.upgradeRequired) {
+            navigate("/pricing", { state: { reason: "upgrade_required" } });
+            return;
+          }
+          showNotice(data?.message || data?.error || "Failed to upload file");
+          return;
+        }
 
         if (data.path) {
           setReply("");
@@ -96,108 +132,22 @@ export default function ChatWindow() {
         }
       } catch (err) {
         console.error("PDF upload failed", err);
+        showNotice("Failed to upload file");
       }
     });
 
     el.click();
   };
 
-  //YOUTUBE UPLOAD
-  const handleYoutube = async () => {
-    if (!prompt.trim()) {
-      alert("Paste a YouTube URL first");
-      return;
-    }
-
-    if (!prompt.includes("youtube.com") && !prompt.includes("youtu.be")) {
-      alert("Invalid YouTube URL");
-      return;
-    }
-
-    try {
-      setLoader(true);
-      await fetch("http://localhost:3000/api/v1/youtube", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token
-        },
-        body: JSON.stringify({
-          url: prompt,
-          threadId: currThreadId
-        })
-      });
-
-      setprevChats(prev => [
-        ...prev,
-        {
-          role: "user",
-          content: "Uploaded a YouTube video",
-          videoUrl: prompt
-        }
-      ]);
-
-      setPrompt("");
-    } catch (err) {
-      console.error("YouTube upload failed", err);
-    }
-
-    setLoader(false);
-  };
-  //LINK UPLOAD 
-    const handleLinkUpload = async () => {
-      if (!prompt.trim()) {
-        alert("Paste a link first");
-        return;
-      }
-
-      try {
-        setLoader(true);
-
-        const res = await fetch("http://localhost:3000/api/v1/upload/link", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token
-          },
-          body: JSON.stringify({
-            url: prompt,
-            threadId: currThreadId
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          alert(data.error || "Failed to upload link");
-          return;
-        }
-
-        // show link as user message
-        setprevChats(prev => [
-          ...prev,
-          {
-            role: "user",
-            content: prompt,
-            linkUrl: prompt
-          }
-        ]);
-
-        setPrompt("");
-      } catch (err) {
-        console.error("Link upload failed", err);
-      } finally {
-        setLoader(false);
-      }
-  };
   // NEW: upload youtube using direct url
 const uploadYoutubeByUrl = async (url: string) => {
+  if (!ensureUploadAccess()) return;
   if (!url.trim()) return;
 
   try {
     setLoader(true);
 
-    await fetch("http://localhost:3000/api/v1/youtube", {
+    const response = await fetch("http://localhost:3000/api/v1/youtube", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -208,6 +158,15 @@ const uploadYoutubeByUrl = async (url: string) => {
         threadId: currThreadId
       })
     });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data?.upgradeRequired) {
+        navigate("/pricing", { state: { reason: "upgrade_required" } });
+        return;
+      }
+      showNotice(data?.message || "Failed to upload YouTube link");
+      return;
+    }
 
     setprevChats(prev => [
       ...prev,
@@ -219,6 +178,7 @@ const uploadYoutubeByUrl = async (url: string) => {
     ]);
   } catch (err) {
     console.error("YouTube upload failed", err);
+    showNotice("Failed to upload YouTube link");
   } finally {
     setLoader(false);
   }
@@ -226,6 +186,7 @@ const uploadYoutubeByUrl = async (url: string) => {
 
 // NEW: upload link using direct url
 const uploadLinkByUrl = async (url: string) => {
+  if (!ensureUploadAccess()) return;
   if (!url.trim()) return;
 
   try {
@@ -245,7 +206,11 @@ const uploadLinkByUrl = async (url: string) => {
 
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || "Failed to upload link");
+      if (data?.upgradeRequired) {
+        navigate("/pricing", { state: { reason: "upgrade_required" } });
+        return;
+      }
+      showNotice(data.error || "Failed to upload link");
       return;
     }
 
@@ -260,6 +225,7 @@ const uploadLinkByUrl = async (url: string) => {
     ]);
   } catch (err) {
     console.error("Link upload failed", err);
+    showNotice("Failed to upload link");
   } finally {
     setLoader(false);
   }
@@ -281,13 +247,26 @@ const uploadLinkByUrl = async (url: string) => {
 
 
   return (
-    <div className="flex h-[calc(100vh-64px)] w-full">
-      <div className="flex-1">
-        <div className="chatWindow h-full w-full flex flex-col justify-between items-center bg-white text-black">
-          <Chat1 />
+    <div className="flex h-full w-full min-h-0">
+      <div className="flex-1 min-h-0">
+        <div className="chatWindow h-full w-full flex flex-col items-center bg-white text-black">
+          <div className="w-full flex-1 min-h-0 flex justify-center">
+            <Chat1 />
+          </div>
           <RingLoader color="#000" loading={loader} />
+          {notice && (
+            <div
+              className={`absolute top-4 right-4 z-50 rounded-lg border px-4 py-2 text-sm shadow-md ${
+                notice.type === "error"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-blue-200 bg-blue-50 text-blue-700"
+              }`}
+            >
+              {notice.message}
+            </div>
+          )}
 
-          <div className="flex flex-col justify-center items-center w-full">
+          <div className="flex flex-col justify-center items-center w-full shrink-0">
             <div className="inputBox w-full flex justify-between items-center relative">
               {/* Uploaded file chip */}
               {uploadedFileurl && (
@@ -335,6 +314,7 @@ const uploadLinkByUrl = async (url: string) => {
                 className="flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded"
                 onClick={() => {
                   setShowMenu(false);
+                  if (!ensureUploadAccess()) return;
                   handleFile();
                 }}
               >
@@ -346,6 +326,7 @@ const uploadLinkByUrl = async (url: string) => {
               <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded"
                 onClick={() => {
                   setShowMenu(false);
+                  if (!ensureUploadAccess()) return;
                   setShowLinkInput("youtube");
                 }}
               >
@@ -356,6 +337,7 @@ const uploadLinkByUrl = async (url: string) => {
               <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded"
                 onClick={() => {
                   setShowMenu(false);
+                  if (!ensureUploadAccess()) return;
                   setShowLinkInput("link");
                 }}
               >

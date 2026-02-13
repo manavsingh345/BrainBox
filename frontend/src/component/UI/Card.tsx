@@ -169,8 +169,8 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
   };
 
   return (
-    <div onClick={onClick} className="cursor-pointer group">
-      <div className={`relative bg-gradient-to-br ${typeColors[type]} rounded-2xl shadow-lg border border-gray-200/50 w-90 h-[520px] overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-2 hover:border-gray-300/70`}>
+    <div onClick={onClick} className="group w-full cursor-pointer sm:max-w-[380px]">
+      <div className={`relative h-[520px] w-full overflow-hidden rounded-2xl border border-gray-200/50 bg-gradient-to-br ${typeColors[type]} shadow-lg transition-all duration-300 ease-out hover:-translate-y-2 hover:border-gray-300/70 hover:shadow-2xl`}>
 
         
         <div className="relative bg-white/70 backdrop-blur-sm border-b border-gray-200/50 px-5 py-4">
@@ -196,7 +196,7 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
             </div>
 
             {/* Title */}
-            <h2 className="flex-1 text-center text-lg font-bold text-gray-800 line-clamp-2 leading-tight">
+            <h2 className="flex-1 text-center text-[1.2rem] font-semibold tracking-tight text-slate-800 line-clamp-2 leading-snug sm:text-[1.28rem]">
               {title}
             </h2>
 
@@ -232,7 +232,7 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
           <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
             {type === "youtube" && (
               <iframe
-                className="w-full h-[320px]"
+                className="h-[290px] w-full sm:h-[320px]"
                 src={link.replace("watch", "embed").replace("?v=", "/")}
                 title="YouTube video player"
                 frameBorder="0"
@@ -243,7 +243,7 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
             )}
 
             {type === "twitter" && (
-              <div className="w-full h-[320px] overflow-auto">
+              <div className="h-[290px] w-full overflow-auto sm:h-[320px]">
                 <blockquote className="twitter-tweet w-full h-full overflow-auto">
                   <a href={link.replace("x.com", "twitter.com")}></a>
                 </blockquote>
@@ -251,7 +251,7 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
             )}
 
             {type === "document" && (
-              <div className="p-4 h-[320px] overflow-auto">
+              <div className="h-[290px] overflow-auto p-4 sm:h-[320px]">
                 <p className="text-gray-700 whitespace-pre-line text-sm leading-relaxed">
                   {link}
                 </p>
@@ -259,7 +259,7 @@ export function Card({ title, link, type, onDelete, date, onClick }: CardProps) 
             )}
 
             {type === "links" && (
-              <div className="h-[320px] overflow-hidden">
+              <div className="h-[290px] overflow-hidden sm:h-[320px]">
                 <Microlink url={link} size="large" />
               </div>
             )}

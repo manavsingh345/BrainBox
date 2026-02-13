@@ -111,6 +111,13 @@ export function Dashboard() {
   const [newChat, setnewChat] = useState(true);
   const [allThreads, setAllThreads] = useState<Thread[]>([]);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const selectedTypeLabel: Record<'twitter' | 'youtube' | 'document' | 'links' | 'chat', string> = {
+    youtube: 'YouTube',
+    twitter: 'Twitter',
+    document: 'Documents',
+    links: 'Links',
+    chat: 'Chat',
+  };
 
 
   const providerValues = {
@@ -133,15 +140,20 @@ export function Dashboard() {
       <Sidebar selectedType={selectedType} onSelectType={setSelectedType} user={user} sidebaropen={sidebaropen} setSidebaropen={setSidebaropen}/>
 
       <div
-        className={`min-h-screen transition-all duration-300
-    ${sidebaropen ? 'ml-72' : 'ml-10 '}`}
+        className={`transition-all duration-300 ${
+          selectedType === 'chat'
+            ? 'h-screen overflow-hidden px-0 pt-0'
+            : 'min-h-screen px-3 pt-16 sm:px-4 lg:px-6 lg:pt-4'
+        } ${
+          sidebaropen ? 'lg:ml-72' : 'lg:ml-10'
+        }`}
       >
         <MyContext.Provider value={providerValues}>
           {selectedType === 'chat' && (
-            <>
+            <div className="h-full w-full flex flex-col bg-white">
               <ChatNavbar />
               <ChatWindow />
-            </>
+            </div>
           )}
         </MyContext.Provider>
 
@@ -154,72 +166,96 @@ export function Dashboard() {
         />
 
         {selectedType !== 'chat' && (
-          <div className="relative flex items-center py-5">
-            <div className="ml-auto flex pl-2 gap-4 z-20 relative">
-                <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by title or link..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                 className={`${sidebaropen ? "min-w-2xl" : "min-w-3xl"} pl-12 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all shadow-sm hover:shadow-md`}/>
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
-              
-              {searchQuery && (
-                <p className="mt-3 text-sm text-gray-600">
-                  Found {filteredContents.length} result{filteredContents.length !== 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
+          <div className="mx-auto w-full max-w-[1400px] py-5">
+            <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_minmax(380px,540px)_auto] xl:items-center">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between xl:justify-start xl:gap-4">
+                <div>
+                  <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
+                  <p className="text-sm text-slate-500">
+                    Manage your <span className="font-medium text-slate-700">{selectedTypeLabel[selectedType]}</span> content in real time
+                  </p>
+                </div>
+                <div className="inline-flex min-w-[92px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium tabular-nums text-slate-600 shadow-sm">
+                  {filteredContents.length} items
+                </div>
+              </div>
 
-            <div className="ml-auto flex pl-2 gap-4">
-              <Button
-                onClick={() => setModelOpen(true)}
-                startIcon={<PlusIcon size="lg" />}
-                variant="primary"
-                text="Add content"
-                size="md"
-              />
+              <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-white via-slate-50 to-white p-2.5 shadow-sm xl:col-span-2">
+                <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(380px,540px)_auto] xl:items-center">
+                  <div className="relative xl:w-full">
+                    <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 transform text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by title or link..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white/95 py-3 pl-12 pr-12 text-gray-800 placeholder-gray-400 shadow-sm transition-all hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 transform text-gray-400 transition-colors hover:text-gray-600"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
 
-              <Button
-                onClick={async () => {
-                  try {
-                    const response = await axios.post(
-                      `${BACKEND_URL}/api/v1/brain/share`,
-                      { share: true },
-                      {
-                        headers: {
-                          Authorization: localStorage.getItem('token'),
-                        },
-                      }
-                    );
-                    const url = `http://localhost:5173/share/${response.data.hash}`;
-                    alert(url);
-                  } catch (error: any) {
-                    console.error('Failed to share brain:', error);
-                    alert('Could not generate shareable link. Please try again.');
-                  }
-                }}
-                startIcon={<ShareIcon size="lg" />}
-                variant="secondary"
-                text="Share Brain"
-                size="md"
-              />
+                  <div className="flex w-full flex-row flex-wrap items-center justify-end gap-2 xl:w-auto xl:flex-nowrap">
+                    <Button
+                      onClick={() => setModelOpen(true)}
+                      startIcon={<PlusIcon size="lg" />}
+                      variant="primary"
+                      text="Add content"
+                      size="sm"
+                    />
+
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const response = await axios.post(
+                            `${BACKEND_URL}/api/v1/brain/share`,
+                            { share: true },
+                            {
+                              headers: {
+                                Authorization: localStorage.getItem('token'),
+                              },
+                            }
+                          );
+                          const url = `http://localhost:5173/share/${response.data.hash}`;
+                          alert(url);
+                        } catch (error: any) {
+                          console.error('Failed to share brain:', error);
+                          alert('Could not generate shareable link. Please try again.');
+                        }
+                      }}
+                      startIcon={<ShareIcon size="lg" />}
+                      variant="secondary"
+                      text="Share Brain"
+                      size="sm"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
+            {searchQuery && (
+              <p className="mt-3 text-sm text-slate-600">
+                Found {filteredContents.length} result{filteredContents.length !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         )}
 
         {selectedType !== 'chat' && (
-          <div className="flex flex-col gap-8 overflow-hidden">
+          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 overflow-hidden pb-6">
             <div key={currentPage} className={`transition-all duration-300 ease-out ${direction === 'next' ? 'animate-slide-left': 'animate-slide-right'}`}>
-        <div className={`flex flex-wrap ${sidebaropen ? "px-8 gap-10" : "gap-2"}`}>
+        <div
+          className={`grid gap-3 lg:gap-4 ${
+            sidebaropen
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+          }`}
+        >
           {filteredContents.length > 0 ? (
             paginatedContents.map(({ type, link, title, _id }) => (
               <Card
@@ -233,9 +269,10 @@ export function Dashboard() {
               />
             ))
           ) : searchQuery ? (
-          <div className="w-full text-center py-16">
-            <Search className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium">No results found</h3>
+          <div className="col-span-full w-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
+            <Search className="mx-auto mb-3 h-8 w-8 text-gray-400" />
+            <h3 className="text-lg font-medium text-slate-800">No results found</h3>
+            <p className="mt-1 text-sm text-slate-500">Try another keyword or clear the search.</p>
           </div>
         ) : null}
       </div>
@@ -250,13 +287,13 @@ export function Dashboard() {
                           setCurrentPage(prev => Math.max(1, prev - 1));
                         }}
                         disabled={currentPage === 1}
-                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white shadow-sm transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                       <ChevronLeft className="w-5 h-5 text-gray-700" />
                     </button>
 
 
-                <span className="text-sm font-medium text-gray-600">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 shadow-sm">
                   Page {currentPage} of {totalPages}
                 </span>
 
@@ -266,7 +303,7 @@ export function Dashboard() {
                     setCurrentPage(prev => Math.min(totalPages, prev + 1));
                   }}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white shadow-sm transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRight className="w-5 h-5 text-gray-700" />
                 </button>
@@ -284,19 +321,20 @@ export function Dashboard() {
         )}
 
         {selectedCard && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-transparent  flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg max-w-3xl w-full h-[80vh] overflow-y-auto relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="relative h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-white/60 bg-white/95 p-4 shadow-2xl sm:h-[85vh] sm:p-6">
               <button
-                className="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl cursor-pointer"
+                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900"
                 onClick={() => setSelectedCard(null)}
+                aria-label="Close card"
               >
-                ×
+                <X className="h-5 w-5" />
               </button>
-              <h2 className="text-xl flex justify-center font-semibold mb-4">{selectedCard.title}</h2>
+              <h2 className="mb-4 pr-10 text-center text-xl font-semibold text-gray-900 sm:mb-6 sm:text-2xl">{selectedCard.title}</h2>
 
               {selectedCard.type === 'youtube' && (
                 <iframe
-                  className="w-full h-[470px] rounded-md pl-5 pr-5"
+                  className="h-[280px] w-full rounded-xl border border-gray-200 sm:h-[500px]"
                   src={selectedCard.link.replace('watch', 'embed').replace('?v=', '/')}
                   title="YouTube video player"
                   frameBorder="0"
@@ -319,7 +357,7 @@ export function Dashboard() {
               )}
 
               {selectedCard.type === 'links' && (
-                <div className="w-full h-[470px]">
+                <div className="h-[280px] w-full sm:h-[500px]">
                   <div className="w-full h-full block">
                     <Microlink url={selectedCard.link} size="large" style={{ height: '100%', maxWidth: '100%' }} />
                   </div>

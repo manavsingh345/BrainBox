@@ -48,9 +48,9 @@ export default function Chat1(){
     }, [lastAssistantIndex, prevChats]);
     
     return (
-        <>
-        {newChat && <h1 className="text-3xl pt-10">BrainBox Welcome's you!</h1>}
-        <div className="chats w-full">
+        <div className="w-full h-full min-h-0 flex flex-col">
+        {newChat && <h1 className="text-3xl pt-6 text-center">BrainBox Welcome's you!</h1>}
+        <div className="chats w-full h-full min-h-0">
             {
                 prevChats?.map((chat,idx)=>
                 <div className={chat.role==="user" ? "userDiv" : "gptDiv"} key={idx}>
@@ -89,6 +89,6 @@ export default function Chat1(){
             }
             
         </div>
-        </>
+        </div>
     )
 }

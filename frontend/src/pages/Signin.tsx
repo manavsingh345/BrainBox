@@ -21,7 +21,8 @@ export  function Signin(){
         localStorage.setItem("token",jwt);
         localStorage.setItem("user", JSON.stringify({
             username: response.data.username,
-            email: response.data.email
+            email: response.data.email,
+            isUpgraded: Boolean(response.data.isUpgraded)
         }));
 
         navigate("/dashboard");
