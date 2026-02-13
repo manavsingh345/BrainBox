@@ -5,14 +5,16 @@ import { MyContext } from "./Context";
 import { RingLoader } from "react-spinners";
 import Sidebar1 from "./Sidebar1";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 
 export default function ChatWindow() {
-  const { prompt, setPrompt,reply,setReply, currThreadId,setprevChats,setnewChat} = useContext(MyContext);
+  const { prompt, setPrompt,setReply, currThreadId,setprevChats,setnewChat} = useContext(MyContext);
   const navigate = useNavigate();
 
   const [loader, setLoader] = useState<boolean>(false);
-  const [uploadedFileurl, setUploadedFileurl] = useState("");
-  const [uploadedFilename, setUploadedFilename] = useState("");
+  const [contextItems, setContextItems] = useState<
+    Array<{ id: string; type: "pdf" | "link" | "youtube"; label: string; href?: string }>
+  >([]);
 
   const [showMenu, setShowMenu] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState<null | "youtube" | "link">(null);
@@ -22,8 +24,35 @@ export default function ChatWindow() {
 
   const token = localStorage.getItem("token") ?? "";
 
+  const safeParseJson = <T,>(raw: string | null): T | null => {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  };
+
+  const parseJsonResponse = async (response: Response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
+
   const showNotice = (message: string, type: "info" | "error" = "error") => {
     setNotice({ type, message });
+  };
+
+  const addContextItem = (item: { type: "pdf" | "link" | "youtube"; label: string; href?: string }) => {
+    const id = `${item.type}:${item.href || item.label}`;
+    setContextItems((prev) => {
+      if (prev.some((x) => x.id === id)) return prev;
+      return [...prev, { ...item, id }];
+    });
   };
 
   useEffect(() => {
@@ -32,9 +61,12 @@ export default function ChatWindow() {
     return () => clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => {
+    setContextItems([]);
+  }, [currThreadId]);
+
   const ensureUploadAccess = () => {
-    const rawUser = localStorage.getItem("user");
-    const parsedUser = rawUser ? JSON.parse(rawUser) : null;
+    const parsedUser = safeParseJson<{ isUpgraded?: boolean }>(localStorage.getItem("user"));
     const hasUpgrade = Boolean(parsedUser?.isUpgraded);
 
     if (hasUpgrade) return true;
@@ -45,36 +77,52 @@ export default function ChatWindow() {
     return false;
   };
 
-  // ---------------- CHAT ----------------
+  // CHAT 
   const getReply = async () => {
     if (!prompt.trim() || loader) return;
+    const userMessage = prompt.trim();
+    const messageAttachments = contextItems.map((item) => ({
+      type: item.type,
+      label: item.label,
+      href: item.href
+    }));
 
     setLoader(true);
     setnewChat(false);
 
     try {
-      const response = await fetch("http://localhost:3000/api/v1/chat1", {
+      const response = await fetch(`${BACKEND_URL}/api/v1/chat1`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: token
         },
         body: JSON.stringify({
-          message: prompt,
+          message: userMessage,
           threadId: currThreadId
         })
       });
 
-      const data = await response.json();
-      setReply(data.reply || "Something went wrong. Please try again.");
-      setUploadedFileurl("");
-      setUploadedFilename("");
+      const data = await parseJsonResponse(response);
+      if (!response.ok) {
+        setReply(data?.error || "Something went wrong. Please try again.");
+        return;
+      }
+      const assistantReply = data.reply || "Something went wrong. Please try again.";
+      setReply(assistantReply);
+      setprevChats(prev => [
+        ...prev,
+        { role: "user", content: userMessage, attachments: messageAttachments },
+        { role: "assistant", content: assistantReply }
+      ]);
+      setPrompt("");
+      setContextItems([]);
     } catch (err) {
       console.error(err);
       setReply("Failed to fetch response.");
+    } finally {
+      setLoader(false);
     }
-
-    setLoader(false);
   };
 
   // PDF UPLOAD 
@@ -95,7 +143,7 @@ export default function ChatWindow() {
 
       try {
       const response = await fetch(
-          "http://localhost:3000/api/v1/upload/pdf",
+          `${BACKEND_URL}/api/v1/upload/pdf`,
           {
             method: "POST",
             headers: {
@@ -105,7 +153,7 @@ export default function ChatWindow() {
           }
         );
 
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           if (data?.upgradeRequired) {
             navigate("/pricing", { state: { reason: "upgrade_required" } });
@@ -116,19 +164,12 @@ export default function ChatWindow() {
         }
 
         if (data.path) {
-          setReply("");
-          setUploadedFileurl(data.path);
-          setUploadedFilename(data.filename);
-
-          setprevChats(prev => [
-            ...prev,
-            {
-              role: "user",
-              content: "",
-              fileUrl: data.path,
-              fileName: data.filename
-            }
-          ]);
+          addContextItem({
+            type: "pdf",
+            label: data.filename || "Uploaded PDF",
+            href: data.path,
+          });
+          showNotice("PDF added. Ask your question to chat with this file.", "info");
         }
       } catch (err) {
         console.error("PDF upload failed", err);
@@ -147,7 +188,7 @@ const uploadYoutubeByUrl = async (url: string) => {
   try {
     setLoader(true);
 
-    const response = await fetch("http://localhost:3000/api/v1/youtube", {
+    const response = await fetch(`${BACKEND_URL}/api/v1/youtube`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,7 +199,7 @@ const uploadYoutubeByUrl = async (url: string) => {
         threadId: currThreadId
       })
     });
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     if (!response.ok) {
       if (data?.upgradeRequired) {
         navigate("/pricing", { state: { reason: "upgrade_required" } });
@@ -168,14 +209,12 @@ const uploadYoutubeByUrl = async (url: string) => {
       return;
     }
 
-    setprevChats(prev => [
-      ...prev,
-      {
-        role: "user",
-        content: "Uploaded a YouTube video",
-        videoUrl: url
-      }
-    ]);
+    addContextItem({
+      type: "youtube",
+      label: "YouTube video",
+      href: url,
+    });
+    showNotice("YouTube link added. Ask your question now.", "info");
   } catch (err) {
     console.error("YouTube upload failed", err);
     showNotice("Failed to upload YouTube link");
@@ -192,7 +231,7 @@ const uploadLinkByUrl = async (url: string) => {
   try {
     setLoader(true);
 
-    const res = await fetch("http://localhost:3000/api/v1/upload/link", {
+    const res = await fetch(`${BACKEND_URL}/api/v1/upload/link`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -204,7 +243,7 @@ const uploadLinkByUrl = async (url: string) => {
       })
     });
 
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
     if (!res.ok) {
       if (data?.upgradeRequired) {
         navigate("/pricing", { state: { reason: "upgrade_required" } });
@@ -214,15 +253,12 @@ const uploadLinkByUrl = async (url: string) => {
       return;
     }
 
-    setReply("");
-    setprevChats(prev => [
-      ...prev,
-      {
-        role: "user",
-        content: "",
-        linkUrl: url
-      }
-    ]);
+    addContextItem({
+      type: "link",
+      label: url,
+      href: url,
+    });
+    showNotice("Website link added. Ask your question now.", "info");
   } catch (err) {
     console.error("Link upload failed", err);
     showNotice("Failed to upload link");
@@ -231,24 +267,9 @@ const uploadLinkByUrl = async (url: string) => {
   }
 };
 
-
-
-  // APPEND CHATS 
-  useEffect(() => {
-    if (prompt && reply) {
-      setprevChats(prev => [
-        ...prev,
-        { role: "user", content: prompt },
-        { role: "assistant", content: reply }
-      ]);
-    }
-    setPrompt("");
-  }, [reply]);
-
-
   return (
     <div className="flex h-full w-full min-h-0">
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 pr-3 md:pr-5 lg:pr-6">
         <div className="chatWindow h-full w-full flex flex-col items-center bg-white text-black">
           <div className="w-full flex-1 min-h-0 flex justify-center">
             <Chat1 />
@@ -267,44 +288,62 @@ const uploadLinkByUrl = async (url: string) => {
           )}
 
           <div className="flex flex-col justify-center items-center w-full shrink-0">
-            <div className="inputBox w-full flex justify-between items-center relative">
-              {/* Uploaded file chip */}
-              {uploadedFileurl && (
-                <a
-                  href={uploadedFileurl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute left-4 top-3 bg-gray-200 px-3 py-1 rounded-lg flex items-center gap-2 text-sm shadow"
-                >
-                  <i className="fa-solid fa-file"></i>
-                  <span className="max-w-[120px] truncate">
-                    {uploadedFilename}
-                  </span>
-                  <button
-                    onClick={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setUploadedFileurl("");
-                    }}
-                  >
-                    ✕
-                  </button>
-                </a>
+            <div className="inputBox w-full pb-2">
+              {contextItems.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2 px-1">
+                  {contextItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700"
+                    >
+                      <i
+                        className={
+                          item.type === "pdf"
+                            ? "fa-solid fa-file text-slate-600"
+                            : item.type === "youtube"
+                            ? "fa-brands fa-youtube text-red-500"
+                            : "fa-solid fa-link text-blue-600"
+                        }
+                      ></i>
+                      {item.href ? (
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="max-w-[220px] truncate hover:underline"
+                        >
+                          {item.label}
+                        </a>
+                      ) : (
+                        <span className="max-w-[220px] truncate">{item.label}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="text-slate-500 hover:text-slate-800"
+                        onClick={() => setContextItems((prev) => prev.filter((x) => x.id !== item.id))}
+                        aria-label="Remove context item"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
 
-              {/* Textarea */}
-              <textarea placeholder="Ask anything" className="w-full" value={prompt} onChange={e => setPrompt(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    getReply();
-                  }
-                }}
-              />
+              <div className="relative">
+                {/* Textarea */}
+                <textarea placeholder="Ask anything" className="w-full pl-12 pr-12" value={prompt} onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      getReply();
+                    }
+                  }}
+                />
 
-              {/* PLUS BUTTON */}
-              <div className="absolute left-4 top-13 -translate-y-1/2 cursor-pointer text-xl" onClick={() => setShowMenu(prev => !prev)}
-                ><i className="fa-solid fa-plus"></i></div>
+                {/* PLUS BUTTON */}
+                <div className="absolute left-4 top-1/2 -translate-y-1/5 cursor-pointer text-xl" onClick={() => setShowMenu(prev => !prev)}
+                  ><i className="fa-solid fa-plus"></i></div>
 
               {showMenu && (
               <div className="absolute left-4 bottom-16 bg-white shadow-lg rounded-xl p-2 w-48 z-50">
@@ -348,9 +387,10 @@ const uploadLinkByUrl = async (url: string) => {
 
 
 
-              {/* Send */}
-              <div onClick={!loader ? getReply : undefined}  className={`cursor-pointer absolute right-0 pr-8 text-xl ${ loader ? "opacity-50 pointer-events-none" : ""}`}>
-                <i className="fa-solid fa-paper-plane"></i>
+                {/* Send */}
+                <div onClick={!loader ? getReply : undefined}  className={`cursor-pointer absolute right-4 top-1/2 -translate-y-1/2 text-xl ${ loader ? "opacity-50 pointer-events-none" : ""}`}>
+                  <i className="fa-solid fa-paper-plane"></i>
+                </div>
               </div>
             </div>
 
@@ -412,3 +452,4 @@ const uploadLinkByUrl = async (url: string) => {
     </div>
   );
 }
+

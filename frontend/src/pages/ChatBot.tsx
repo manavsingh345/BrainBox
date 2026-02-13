@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./chat.css"
+import { BACKEND_URL } from "../config";
 type ChatMessage = {
     sender?:"user" | "bot",
     text?:string,
@@ -26,17 +27,20 @@ export default function ChatBot({onClose}: ChatBotProps){
             body: JSON.stringify(payload),
         };
         try{
-            const response=await fetch("http://localhost:3000/api/v1/chat",options);
+            const response=await fetch(`${BACKEND_URL}/api/v1/chat`,options);
             const data=await response.json();
-            console.log(data);
-            setChats((prev)=>[...prev,{sender:"bot",text:data.reply}]);
+            if (!response.ok) {
+                setChats((prev)=>[...prev,{sender:"bot",text:"Unable to fetch reply right now."}]);
+                return;
+            }
+            setChats((prev)=>[...prev,{sender:"bot",text:data.reply || "No response generated."}]);
         }catch(e){
-            console.log(e);
+            setChats((prev)=>[...prev,{sender:"bot",text:"Network error. Please try again."}]);
         }
         setMessage(""); 
     }
     return(
-       <div className="chat mr-4 bg-white shadow-xl rounded-2xl w-80">
+       <div className="chat h-full w-full bg-white shadow-xl rounded-2xl">
         <div className="flex flex-col rounded-2xl bg-gray-300">
             <div className="flex items-center border-b pb-2 justify-between drag-header cursor-grab active:cursor-grabbing">
             <div className="flex items-center gap-2 m-2">

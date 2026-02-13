@@ -2,6 +2,11 @@ import { createContext, type Dispatch, type SetStateAction } from "react";
 type Chat = {
   role: string;
   content: string;
+  attachments?: Array<{
+    type: "pdf" | "link" | "youtube";
+    label: string;
+    href?: string;
+  }>;
   fileUrl?: string;
   fileName?: string;
   linkUrl?: string;

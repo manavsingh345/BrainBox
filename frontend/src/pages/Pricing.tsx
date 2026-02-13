@@ -119,14 +119,22 @@ function loadRazorpayCheckoutScript() {
   });
 }
 
+function safeParseJson<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default function Pricing() {
   const [isYearly, setIsYearly] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
   const [currentPlan, setCurrentPlan] = useState<string>(() => {
-    const raw = localStorage.getItem("user");
-    const parsed = raw ? JSON.parse(raw) : null;
+    const parsed = safeParseJson<{ currentPlan?: string }>(localStorage.getItem("user"));
     return parsed?.currentPlan || "Starter";
   });
   const navigate = useNavigate();
@@ -164,7 +172,7 @@ export default function Pricing() {
 
         const rawUser = localStorage.getItem("user");
         if (rawUser) {
-          const parsed = JSON.parse(rawUser);
+          const parsed = safeParseJson<Record<string, unknown>>(rawUser) || {};
           localStorage.setItem("user", JSON.stringify({
             ...parsed,
             currentPlan: planFromApi,
@@ -268,7 +276,7 @@ export default function Pricing() {
 
             const rawUser = localStorage.getItem("user");
             if (rawUser) {
-              const parsed = JSON.parse(rawUser);
+              const parsed = safeParseJson<Record<string, unknown>>(rawUser) || {};
               localStorage.setItem("user", JSON.stringify({
                 ...parsed,
                 isUpgraded: plan.name !== "Starter",

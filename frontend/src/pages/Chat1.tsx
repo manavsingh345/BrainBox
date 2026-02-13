@@ -22,6 +22,10 @@ export default function Chat1(){
       prevLengthRef.current = currentLength;
 
       if (currentLength <= previousLength || lastAssistantIndex < 0) return;
+      const latestMessage = prevChats[currentLength - 1];
+      const isNewAssistantAtEnd =
+        latestMessage?.role === "assistant" && lastAssistantIndex === currentLength - 1;
+      if (!isNewAssistantAtEnd) return;
 
       // Avoid replaying typing animation when loading long existing history.
       if (currentLength - previousLength > 2) {
@@ -42,7 +46,7 @@ export default function Chat1(){
           window.clearInterval(timer);
           setTypingChatIndex(null);
         }
-      }, 12);
+      }, 6);
 
       return () => window.clearInterval(timer);
     }, [lastAssistantIndex, prevChats]);
@@ -56,6 +60,30 @@ export default function Chat1(){
                 <div className={chat.role==="user" ? "userDiv" : "gptDiv"} key={idx}>
                    {chat.role==="user" ? 
                 <div className="userBlock">
+                    {Array.isArray(chat.attachments) && chat.attachments.length > 0 && (
+                <div className="userAttachments">
+                  {chat.attachments.map((attachment, aIdx) => (
+                    <a
+                      key={`${attachment.type}-${attachment.href || attachment.label}-${aIdx}`}
+                      href={attachment.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="attachmentCard"
+                    >
+                      <i
+                        className={
+                          attachment.type === "pdf"
+                            ? "fa-solid fa-file-lines text-slate-600"
+                            : attachment.type === "youtube"
+                            ? "fa-brands fa-youtube text-red-500"
+                            : "fa-solid fa-link text-slate-600"
+                        }
+                      ></i>
+                      <span className="attachmentName">{attachment.label}</span>
+                    </a>
+                  ))}
+                </div>
+                    )}
                     {chat.fileUrl && (
                 <a
                     href={chat.fileUrl}
@@ -80,7 +108,7 @@ export default function Chat1(){
                 )}
                 {chat.content?.trim() && <p className="userMessage">{chat.content}</p>}
                 </div>: 
-                    <div className="prose max-w-none dark:prose-invert">
+                    <div className="assistantMessage prose max-w-none dark:prose-invert">
                     <ResponseRenderer content={typingChatIndex === idx ? typedAssistantMessage : chat.content} />
                 </div>
                     }

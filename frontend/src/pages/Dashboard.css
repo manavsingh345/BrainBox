@@ -28,3 +28,14 @@
 .animate-slide-right {
   animation: slideRight 1s ease-out;
 }
+
+.dashboard-content-scroll {
+  height: 100vh;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dashboard-content-scroll::-webkit-scrollbar {
+  display: none;
+}

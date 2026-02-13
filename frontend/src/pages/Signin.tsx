@@ -12,22 +12,34 @@ export  function Signin(){
    async function signin(){
         const email=emailRef.current?.value;
         const password=passwordRef.current?.value;
+        if (!email || !password) {
+            alert("Please enter email and password.");
+            return;
+        }
 
-        const response=await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            email,
-            password
-        })
-        const jwt=response.data.token;
-        localStorage.setItem("token",jwt);
-        localStorage.setItem("user", JSON.stringify({
-            username: response.data.username,
-            email: response.data.email,
-            isUpgraded: Boolean(response.data.isUpgraded),
-            currentPlan: response.data.currentPlan || "Starter",
-            billingCycle: response.data.billingCycle || "yearly"
-        }));
+        try {
+            const response=await axios.post(`${BACKEND_URL}/api/v1/signin`,{
+                email,
+                password
+            })
+            const jwt=response.data.token;
+            if (!jwt) {
+                alert("Sign in failed. Please try again.");
+                return;
+            }
+            localStorage.setItem("token",jwt);
+            localStorage.setItem("user", JSON.stringify({
+                username: response.data.username,
+                email: response.data.email,
+                isUpgraded: Boolean(response.data.isUpgraded),
+                currentPlan: response.data.currentPlan || "Starter",
+                billingCycle: response.data.billingCycle || "yearly"
+            }));
 
-        navigate("/dashboard");
+            navigate("/dashboard");
+        } catch (error) {
+            alert("Sign in failed. Please check your credentials.");
+        }
     }
      return (
         <div className="min-h-screen dashboard-grid flex items-center justify-center text-white">

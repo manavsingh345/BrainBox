@@ -18,10 +18,18 @@ import ChatNavbar from './ChatNavbar';
 
 import './Dashboard.css';
 
-const raw = localStorage.getItem('user');
-const user = raw ? JSON.parse(raw) : undefined;
-
 export function Dashboard() {
+  const safeParseJson = <T,>(raw: string | null): T | null => {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  };
+  const user = safeParseJson<{ username: string; email: string }>(
+    localStorage.getItem('user')
+  ) || undefined;
   const [modelOpen, setModelOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Content | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,14 +144,14 @@ export function Dashboard() {
   };
 
   return (
-    <div className='dashboard-grid'>
+    <div className='dashboard-grid dashboard-content-scroll'>
       <Sidebar selectedType={selectedType} onSelectType={setSelectedType} user={user} sidebaropen={sidebaropen} setSidebaropen={setSidebaropen}/>
 
       <div
         className={`transition-all duration-300 ${
           selectedType === 'chat'
             ? 'h-screen overflow-hidden px-0 pt-0'
-            : 'min-h-screen px-3 pt-16 sm:px-4 lg:px-6 lg:pt-4'
+            : 'min-h-screen px-3 pt-10 sm:px-4 lg:px-6 lg:pt-2'
         } ${
           sidebaropen ? 'lg:ml-72' : 'lg:ml-10'
         }`}
@@ -166,8 +174,8 @@ export function Dashboard() {
         />
 
         {selectedType !== 'chat' && (
-          <div className="mx-auto w-full max-w-[1400px] py-5">
-            <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_minmax(380px,540px)_auto] xl:items-center">
+          <div className="mx-auto w-full max-w-[1400px] py-2">
+            <div className="mb-1 grid grid-cols-1 gap-2 xl:grid-cols-[1fr_minmax(380px,540px)_auto] xl:items-center">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between xl:justify-start xl:gap-4">
                 <div>
                   <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
@@ -247,7 +255,7 @@ export function Dashboard() {
         )}
 
         {selectedType !== 'chat' && (
-          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 overflow-hidden pb-6">
+          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 overflow-hidden pb-6">
             <div key={currentPage} className={`transition-all duration-300 ease-out ${direction === 'next' ? 'animate-slide-left': 'animate-slide-right'}`}>
         <div
           className={`grid gap-3 lg:gap-4 ${

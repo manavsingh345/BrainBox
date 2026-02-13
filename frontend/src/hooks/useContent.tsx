@@ -8,7 +8,7 @@ export function useContent(){
       
 
   let interval =  setInterval(()=>{
-        const response=axios.get(`${BACKEND_URL}/api/v1/content`,{
+        axios.get(`${BACKEND_URL}/api/v1/content`,{
         headers:{
             "Authorization":localStorage.getItem("token")
         }

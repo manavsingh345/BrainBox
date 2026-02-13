@@ -14,8 +14,8 @@ interface SidebarProps {
   selectedType: "twitter" | "youtube" | "document" | "links" | "chat";
   onSelectType: (type: "twitter" | "youtube" | "document" | "links" | "chat") => void;
   user?: {
-    username: String;
-    email: String;
+    username: string;
+    email: string;
   };
   sidebaropen: boolean;
   setSidebaropen: (open: boolean) => void;
@@ -113,6 +113,7 @@ export function Sidebar({
 
             <button
               onClick={() => {
+                localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 navigate("/signin");
               }}
