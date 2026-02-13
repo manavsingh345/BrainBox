@@ -4,7 +4,9 @@ import mongoose,{model,Schema, Types} from "mongoose";
 const UserSchema=new Schema({
     username:{type:String,unique:true},
     email: { type: String, required: true, unique: true },
-    password:String
+    password:String,
+    isUpgraded: { type: Boolean, default: false },
+    upgradedAt: { type: Date }
 });
 
 const ContentSchema=new Schema({

@@ -17,6 +17,7 @@ import { generateTitleFromMessage } from "../utils/summary.js";
 import PDFfile from "../models/PDFfile.js";
 import Linkfile from "../models/Linkfile.js";
 import * as cheerio from "cheerio";
+import { UserModel } from "../models/db.js";
 const app=express();
 app.use(cors())
 
@@ -26,6 +27,28 @@ const queue=new Queue("file-upload-queue",{
       port: 6379          // or process.env.VALKEY_PORT
     }
 });
+
+const requireUpgrade = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await UserModel.findById(req.userId).select("isUpgraded");
+    if (!user || !user.isUpgraded) {
+      return res.status(403).json({
+        message: "Upgrade required for uploads",
+        upgradeRequired: true,
+        redirectTo: "/pricing",
+      });
+    }
+
+    return next();
+  } catch (error) {
+    console.error("Upgrade check failed:", error);
+    return res.status(500).json({ message: "Failed to validate subscription" });
+  }
+};
 
 
 
@@ -78,7 +101,7 @@ router.delete("/thread/:threadId",authMiddleware,async(req,res)=>{
 
 //pdf
 const upload = multer({ dest: "uploads/" }); 
-router.post('/upload/pdf', authMiddleware, upload.single('pdf'), async (req, res) => {
+router.post('/upload/pdf', authMiddleware, requireUpgrade, upload.single('pdf'), async (req, res) => {
   try {
     const userId = req.userId;
     const originalName = req.file?.originalname;
@@ -169,7 +192,7 @@ router.post('/upload/pdf', authMiddleware, upload.single('pdf'), async (req, res
 });
 
 //Youtube
-router.post("/youtube", authMiddleware, async (req, res) => {
+router.post("/youtube", authMiddleware, requireUpgrade, async (req, res) => {
   function extractVideoId(url:any) {
   const patterns = [
     /v=([^&]+)/,
@@ -266,7 +289,7 @@ try {
 });
 
 // Link
-router.post("/upload/link", authMiddleware, async (req, res) => {
+router.post("/upload/link", authMiddleware, requireUpgrade, async (req, res) => {
   try {
     const { url, threadId, message } = req.body;
     const userId = req.userId;

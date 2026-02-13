@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import {z} from "zod";
 import cors from "cors";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import {ContentModel, UserModel,LinkModel} from "./models/db.js";
 import router from "./routes/chat.js";
 import {JWT_PASSWORD} from "./config.js";
@@ -26,6 +28,16 @@ dotenv.config({
   path: resolve(__dirname, "../.env"),
 });
 
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+
+const razorpayClient =
+  razorpayKeyId && razorpayKeySecret
+    ? new Razorpay({
+        key_id: razorpayKeyId,
+        key_secret: razorpayKeySecret,
+      })
+    : null;
 
 
 mongoose.connect(process.env.MONGO_URL!).then(() => {
@@ -63,6 +75,7 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
         username:username,
         email:email,
         password:hashedPassword,
+        isUpgraded: false,
     });
     res.json({
       message: "User is signed up",
@@ -102,7 +115,8 @@ app.post("/api/v1/signin",async (req, res) => {
       res.json({
       token: token,
       username: existingUser.username,
-      email: existingUser.email
+      email: existingUser.email,
+      isUpgraded: Boolean((existingUser as any).isUpgraded),
       });
 
     }else{
@@ -274,6 +288,104 @@ app.post("/api/v1/chat", async(req,res)=>{
       res.status(500).json({message:"Error will sending message"});
     }
 });
+
+app.post("/api/v1/payments/razorpay/order", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!razorpayClient || !razorpayKeyId) {
+      return res.status(500).json({ message: "Razorpay is not configured" });
+    }
+
+    const schema = z.object({
+      amountInPaise: z.number().int().positive(),
+      planName: z.string().min(1),
+      billingCycle: z.enum(["monthly", "yearly"]),
+    });
+
+    const validation = schema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: "Invalid order payload",
+        errors: validation.error,
+      });
+    }
+
+    const { amountInPaise, planName, billingCycle } = validation.data;
+
+    const receipt = `rcpt_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+
+    const order = await razorpayClient.orders.create({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt,
+      notes: {
+        planName,
+        billingCycle,
+        userId: req.userId ?? null,
+      },
+    });
+
+    return res.json({
+      keyId: razorpayKeyId,
+      order,
+    });
+  } catch (error) {
+    console.error("Failed to create Razorpay order:", error);
+    return res.status(500).json({ message: "Failed to create payment order" });
+  }
+});
+
+app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!razorpayKeySecret) {
+      return res.status(500).json({ message: "Razorpay secret is not configured" });
+    }
+
+    const schema = z.object({
+      razorpay_order_id: z.string().min(1),
+      razorpay_payment_id: z.string().min(1),
+      razorpay_signature: z.string().min(1),
+      planName: z.string().optional(),
+      billingCycle: z.enum(["monthly", "yearly"]).optional(),
+    });
+
+    const validation = schema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: "Invalid payment verification payload",
+        errors: validation.error,
+      });
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validation.data;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", razorpayKeySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: "Invalid payment signature" });
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    await UserModel.findByIdAndUpdate(req.userId, {
+      isUpgraded: true,
+      upgradedAt: new Date(),
+    });
+
+    return res.json({
+      success: true,
+      isUpgraded: true,
+    });
+  } catch (error) {
+    console.error("Payment verification failed:", error);
+    return res.status(500).json({ message: "Failed to verify payment" });
+  }
+});
+
 app.use("/api/v1", router);
 
 app.listen(3000, () => {
