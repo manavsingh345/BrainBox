@@ -7,7 +7,8 @@ import ChatIcon from "../../icons/ChatIcon";
 import { useNavigate } from "react-router-dom";
 import SidebarIcon from "../../icons/SidebarIcon";
 import { motion } from "framer-motion";
-import BrainIcon from "../../icons/BrainIcon";
+// import BrainIcon from "../../icons/BrainIcon";
+import { Brain } from "lucide-react";
 
 interface SidebarProps {
   selectedType: "twitter" | "youtube" | "document" | "links" | "chat";
@@ -51,7 +52,9 @@ export function Sidebar({
       >
         {/* Logo */}
         <div className="flex items-center gap-2 pt-6 pl-2">
-          <BrainIcon height={30} width={30}/>
+          <div className="p-1.5 rounded-lg bg-primary">
+            <Brain className="w-5 h-5 text-primary-foreground" />
+          </div>
           <h1 className="text-lg font-semibold  tracking-tight text-gray-900">
             BrainBox
           </h1>

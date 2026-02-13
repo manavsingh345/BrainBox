@@ -22,7 +22,9 @@ export  function Signin(){
         localStorage.setItem("user", JSON.stringify({
             username: response.data.username,
             email: response.data.email,
-            isUpgraded: Boolean(response.data.isUpgraded)
+            isUpgraded: Boolean(response.data.isUpgraded),
+            currentPlan: response.data.currentPlan || "Starter",
+            billingCycle: response.data.billingCycle || "yearly"
         }));
 
         navigate("/dashboard");

@@ -6,10 +6,10 @@ import { useNavigate } from "react-router-dom";
 
 export const HeroSection = () => {
   const navigate=useNavigate();
-    
-    const handleSinup=()=>{
-        navigate("/signup");
-    }
+  const handleStartBuilding = () => {
+    const isLoggedIn = Boolean(localStorage.getItem("token"));
+    navigate(isLoggedIn ? "/dashboard" : "/signup");
+  };
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden ">
       {/* Grid background */}
@@ -101,7 +101,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Button2 variant="hero" size="xl" className="group" onClick={handleSinup}>
+            <Button2 variant="hero" size="xl" className="group" onClick={handleStartBuilding}>
               <Brain className="w-5 h-5" />
               Start Building Your Brain
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button2 } from "../component/UI/Button2";
 import { Brain, Menu, X } from "lucide-react";
@@ -12,6 +12,7 @@ const navLinks = [
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
    const navigate=useNavigate();
     const handleLogin = ()=>{
         navigate("/signin");
@@ -19,6 +20,22 @@ export const Navbar = () => {
     const handleSinup=()=>{
         navigate("/signup");
     }
+    const handleDashboard = () => {
+      navigate("/dashboard");
+      setMobileMenuOpen(false);
+    };
+    const handleLogout = () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setIsLoggedIn(false);
+      setMobileMenuOpen(false);
+      navigate("/");
+    };
+    useEffect(() => {
+      const syncAuthState = () => setIsLoggedIn(Boolean(localStorage.getItem("token")));
+      window.addEventListener("storage", syncAuthState);
+      return () => window.removeEventListener("storage", syncAuthState);
+    }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
@@ -48,12 +65,25 @@ export const Navbar = () => {
 
             {/* Desktop CTAs */}
             <div className="hidden md:flex items-center gap-4">
-              <Button2 variant="ghost" size="sm" onClick={handleLogin} className="cursor-pointer">
-                Log in
-              </Button2>
-              <Button2 variant="default" size="sm" onClick={handleSinup} className="cursor-pointer">
-                Get Started
-              </Button2>
+              {isLoggedIn ? (
+                <>
+                  <Button2 variant="ghost" size="sm" onClick={handleDashboard} className="cursor-pointer">
+                    Dashboard
+                  </Button2>
+                  <Button2 variant="default" size="sm" onClick={handleLogout} className="cursor-pointer">
+                    Logout
+                  </Button2>
+                </>
+              ) : (
+                <>
+                  <Button2 variant="ghost" size="sm" onClick={handleLogin} className="cursor-pointer">
+                    Log in
+                  </Button2>
+                  <Button2 variant="default" size="sm" onClick={handleSinup} className="cursor-pointer">
+                    Get Started
+                  </Button2>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -92,12 +122,25 @@ export const Navbar = () => {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button2 variant="ghost" className="justify-start" onClick={handleLogin}> 
-                  Log in
-                </Button2>
-                <Button2 variant="default" onClick={handleSinup}>
-                  Get Started
-                </Button2>
+                {isLoggedIn ? (
+                  <>
+                    <Button2 variant="ghost" className="justify-start" onClick={handleDashboard}> 
+                      Dashboard
+                    </Button2>
+                    <Button2 variant="default" onClick={handleLogout}>
+                      Logout
+                    </Button2>
+                  </>
+                ) : (
+                  <>
+                    <Button2 variant="ghost" className="justify-start" onClick={handleLogin}> 
+                      Log in
+                    </Button2>
+                    <Button2 variant="default" onClick={handleSinup}>
+                      Get Started
+                    </Button2>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

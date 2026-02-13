@@ -1,8 +1,15 @@
 import { motion } from "framer-motion";
 import { Button2 } from "../component/UI/Button2";
 import { ArrowRight, Brain, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const CTASection = () => {
+  const navigate = useNavigate();
+  const handleGetStarted = () => {
+    const isLoggedIn = Boolean(localStorage.getItem("token"));
+    navigate(isLoggedIn ? "/dashboard" : "/signup");
+  };
+
   return (
     <section className="py-20 md:py-32 relative overflow-hidden">
       {/* Background effects */}
@@ -45,7 +52,7 @@ export const CTASection = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button2 variant="hero" size="xl" className="group">
+                <Button2 variant="hero" size="xl" className="group" onClick={handleGetStarted}>
                   <Sparkles className="w-5 h-5" />
                   Get Started Free
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

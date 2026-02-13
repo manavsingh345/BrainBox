@@ -52,7 +52,7 @@ const plans: Plan[] = [
     description: "For teams that need a shared knowledge system with control and governance.",
     monthlyPrice: 400,
     yearlyPrice: 300,
-    cta: "Contact Sales",
+    cta: "Upgrade to Team",
     features: [
       "Everything in Pro",
       "Shared workspaces",
@@ -123,6 +123,12 @@ export default function Pricing() {
   const [isYearly, setIsYearly] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
+  const [currentPlan, setCurrentPlan] = useState<string>(() => {
+    const raw = localStorage.getItem("user");
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.currentPlan || "Starter";
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -142,17 +148,62 @@ export default function Pricing() {
     return () => clearTimeout(timeout);
   }, [notice]);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    axios
+      .get(`${BACKEND_URL}/api/v1/user/plan`, {
+        headers: {
+          Authorization: token,
+        },
+      })
+      .then((res) => {
+        const planFromApi = res.data?.currentPlan || "Starter";
+        setCurrentPlan(planFromApi);
+
+        const rawUser = localStorage.getItem("user");
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          localStorage.setItem("user", JSON.stringify({
+            ...parsed,
+            currentPlan: planFromApi,
+            isUpgraded: Boolean(res.data?.isUpgraded),
+            billingCycle: res.data?.billingCycle || parsed?.billingCycle || "yearly",
+          }));
+        }
+      })
+      .catch(() => {
+        // Silent fail keeps pricing page usable even if user info fetch fails.
+      });
+  }, []);
+
+  useEffect(() => {
+    const onStorageUpdate = () => setIsLoggedIn(Boolean(localStorage.getItem("token")));
+    window.addEventListener("storage", onStorageUpdate);
+    return () => window.removeEventListener("storage", onStorageUpdate);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setCurrentPlan("Starter");
+    navigate("/");
+  };
+
   const handlePlanAction = async (plan: Plan) => {
     const billingCycle: BillingCycle = isYearly ? "yearly" : "monthly";
     const token = localStorage.getItem("token") ?? "";
+    const isActivePlan = currentPlan === plan.name;
 
-    if (plan.name === "Starter") {
-      navigate("/signup");
+    if (isActivePlan) {
+      setNotice({ type: "info", message: `${plan.name} is already your active plan.` });
       return;
     }
 
-    if (plan.name === "Team") {
-      window.location.href = "mailto:sales@brainbox.app?subject=BrainBox%20Team%20Plan";
+    if (plan.name === "Starter") {
+      navigate("/signup");
       return;
     }
 
@@ -218,12 +269,18 @@ export default function Pricing() {
             const rawUser = localStorage.getItem("user");
             if (rawUser) {
               const parsed = JSON.parse(rawUser);
-              localStorage.setItem("user", JSON.stringify({ ...parsed, isUpgraded: true }));
+              localStorage.setItem("user", JSON.stringify({
+                ...parsed,
+                isUpgraded: plan.name !== "Starter",
+                currentPlan: plan.name,
+                billingCycle,
+              }));
             }
+            setCurrentPlan(plan.name);
 
             setNotice({
               type: "success",
-              message: "Payment successful. Pro features are now active.",
+              message: `Payment successful. ${plan.name} plan is now active.`,
             });
             setTimeout(() => navigate("/dashboard"), 900);
           } catch (verifyError) {
@@ -271,12 +328,25 @@ export default function Pricing() {
             BrainBox
           </button>
           <div className="flex items-center gap-3">
-            <Button2 variant="ghost" size="sm" onClick={() => navigate("/signin")}>
-              Log in
-            </Button2>
-            <Button2 variant="default" size="sm" onClick={() => navigate("/signup")}>
-              Get Started
-            </Button2>
+            {isLoggedIn ? (
+              <>
+                <Button2 variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+                  Dashboard
+                </Button2>
+                <Button2 variant="default" size="sm" onClick={handleLogout}>
+                  Logout
+                </Button2>
+              </>
+            ) : (
+              <>
+                <Button2 variant="ghost" size="sm" onClick={() => navigate("/signin")}>
+                  Log in
+                </Button2>
+                <Button2 variant="default" size="sm" onClick={() => navigate("/signup")}>
+                  Get Started
+                </Button2>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -334,6 +404,7 @@ export default function Pricing() {
           {plans.map((plan, idx) => {
             const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
             const isPopular = plan.badge === "Most Popular";
+            const isActivePlan = currentPlan === plan.name;
             const isLoading = processingPlan === plan.name;
 
             return (
@@ -349,6 +420,11 @@ export default function Pricing() {
                 {plan.badge && (
                   <span className="absolute -top-3 left-6 text-xs font-semibold bg-primary text-primary-foreground px-3 py-1 rounded-full">
                     {plan.badge}
+                  </span>
+                )}
+                {isActivePlan && (
+                  <span className="absolute -top-3 right-6 text-xs font-semibold bg-emerald-600 text-white px-3 py-1 rounded-full">
+                    Active Plan
                   </span>
                 )}
 
@@ -370,9 +446,9 @@ export default function Pricing() {
                   size="lg"
                   className="w-full mt-6"
                   onClick={() => void handlePlanAction(plan)}
-                  disabled={isLoading}
+                  disabled={isLoading || isActivePlan}
                 >
-                  {isLoading ? "Processing..." : plan.cta}
+                  {isLoading ? "Processing..." : isActivePlan ? "Current Plan" : plan.cta}
                 </Button2>
 
                 <ul className="mt-6 space-y-3">

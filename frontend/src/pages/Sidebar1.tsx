@@ -2,7 +2,7 @@ import "./Sidebar1.css"
 import { useContext, useEffect } from "react"
 import { MyContext } from "./Context"
 import {v1 as uuidv1} from "uuid";
-import BrainIcon from "../icons/BrainIcon";
+import { Brain } from "lucide-react";
 
 interface Thread {
   threadId: string;
@@ -81,7 +81,9 @@ export default function Sidebar1(){
         <section className="Sidebar flex flex-col justify-between h-full relative">
             <div className="absolute left-0 top-[20px] bottom-[20px] w-[4px] bg-gray-100"></div>
             <button className="flex justify-between items-center cursor-pointer p-6 px-10" onClick={NewChat}>
-                <span><BrainIcon height={25} width={25}></BrainIcon></span>
+                <div className="p-1.5 rounded-lg bg-primary">
+                    <Brain className="w-5 h-5 text-primary-foreground" />
+                </div>
                 <span><i className="fa-solid fa-pen-to-square"></i></span>
             </button>
             
