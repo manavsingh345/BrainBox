@@ -5,26 +5,22 @@ import generateOpenAiResponse from "../utils/openai.js";
 import { authMiddleware } from "../middleware.js";
 import 'dotenv/config';
 import multer from 'multer';
-import {Job, Queue} from "bullmq";
+import { Queue } from "bullmq";
 import { GoogleGenerativeAIEmbeddings,ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import cloudinary from "../uploadCloudinary.js";
 import { YoutubeTranscript } from "youtube-transcript";
-import fs from "fs"
 import axios from "axios";
-import cors from 'cors'
 import { generateTitleFromMessage } from "../utils/summary.js";
 import PDFfile from "../models/PDFfile.js";
 import Linkfile from "../models/Linkfile.js";
 import * as cheerio from "cheerio";
 import { UserModel } from "../models/db.js";
-const app=express();
-app.use(cors())
 
 const queue=new Queue("file-upload-queue",{
   connection: {
-      host: 'localhost',  // or process.env.VALKEY_HOST
-      port: 6379          // or process.env.VALKEY_PORT
+      host: process.env.REDIS_HOST || "localhost",
+      port: Number(process.env.REDIS_PORT || 6379)
     }
 });
 
@@ -56,11 +52,11 @@ const requireUpgrade = async (req: express.Request, res: express.Response, next:
 router.get("/thread",authMiddleware,async (req,res)=>{
     try{
         const threads = await thread.find({userId: req.userId }).sort({ updatedAt: -1 });
-        res.json(threads);
+        return res.json(threads);
     }catch(e){
-        res.json({
+        return res.status(500).json({
             message: "Failed to fetch threads"
-        })
+        });
     }
 });
 
@@ -70,15 +66,15 @@ router.get("/thread/:threadId",authMiddleware,async (req,res)=>{
     try{
         const th=await thread.findOne({threadId,userId:req.userId});
         if(!th){
-            res.json({
+            return res.status(404).json({
                 message:"ThreadId not found"
-            })
+            });
         }
-        res.json(th?.messages);
+        return res.json(th.messages);
     }catch(e){
-        res.json({
+        return res.status(500).json({
             message:"Error will accessing threadId"
-        })
+        });
     }
 });
 
@@ -87,32 +83,54 @@ router.delete("/thread/:threadId",authMiddleware,async(req,res)=>{
     try{
         const deletethread=await thread.findOneAndDelete({threadId,userId:req.userId});
         if(!deletethread){
-            res.status(404).json({error:"Thread is not found"});
+            return res.status(404).json({error:"Thread is not found"});
         }
-        res.status(200).json({success: "thread is deleted"})
+        return res.status(200).json({success: "thread is deleted"});
     }catch(e){
         console.log(e);
-        res.json({
+        return res.status(500).json({
             e:"Error will deleting the thread"
-        })
+        });
     }
 });
 
 
 //pdf
-const upload = multer({ dest: "uploads/" }); 
+const upload = multer({ storage: multer.memoryStorage() }); 
 router.post('/upload/pdf', authMiddleware, requireUpgrade, upload.single('pdf'), async (req, res) => {
   try {
     const userId = req.userId;
-    const originalName = req.file?.originalname;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "File is required" });
+    }
+    const file = req.file;
+    const originalName = file.originalname;
 
-    // 1 Upload to Cloudinary
-    const localpath = req.file?.path;
-    const cloudUpload = await cloudinary.uploader.upload(localpath!, {
-      folder: "pdfs",
-      resource_type: "raw"
+    // 1 Upload directly to Cloudinary from memory (no local disk writes)
+    const cloudUpload = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "pdfs",
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: true,
+          filename_override: originalName,
+        },
+        (error, result) => {
+          if (error || !result) {
+            return reject(error || new Error("Cloudinary upload failed"));
+          }
+          resolve({
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+          });
+        }
+      );
+      stream.end(file.buffer);
     });
-    if(localpath) fs.unlinkSync(localpath);
 
     // 2 Check if this PDF was uploaded before by same user
     let pdf = await PDFfile.findOne({ userId, originalName });
@@ -165,16 +183,6 @@ router.post('/upload/pdf', authMiddleware, requireUpgrade, upload.single('pdf'),
         path: cloudUpload.secure_url
     });
 
-
-    // 5  SAVE a message for this uploaded PDF in the thread history
-   th.messages.push({
-    role: "user",
-    content: "", // optional text like "uploaded a PDF"
-    fileUrl: cloudUpload.secure_url,
-    fileName: originalName
-  });
-
-  await th.save();
 
     return res.json({
       message: pdf.embedded
@@ -250,13 +258,6 @@ try {
       }
     }
 
-    th.messages.push({
-      role: "user",
-      content: "Uploaded a YouTube video",
-      videoId,
-      videoUrl: url
-    });
-
     await th.save();
       console.log("QUEUEING YOUTUBE JOB", {
       videoId,
@@ -295,9 +296,13 @@ router.post("/upload/link", authMiddleware, requireUpgrade, async (req, res) => 
     const userId = req.userId;
 
     if (!url) return res.status(400).json({ error: "URL required" });
+    const parsedUrl = new URL(url);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ error: "Invalid URL protocol" });
+    }
 
     // 1 Fetch HTML
-    const html = await axios.get(url).then(r => r.data);
+    const html = await axios.get(url, { timeout: 20_000 }).then(r => r.data);
 
     // 2 Extract text (Cheerio first)
     const $ = cheerio.load(html);
@@ -413,68 +418,62 @@ router.post("/chat1", authMiddleware,async (req, res) => {
 
 
       if (hasPDFs || hasYoutube || hasLinks) {
-        console.log("Context found → using Gemini with vector search");
+      try {
+        console.log("Context found -> using Gemini with vector search");
         const embeddings = new GoogleGenerativeAIEmbeddings({
-                 model: process.env.GENAI_EMBEDDING_MODEL || "gemini-embedding-001",
-                 apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
+          model: process.env.GENAI_EMBEDDING_MODEL || "gemini-embedding-001",
+          apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
         });
 
-      const vectorStore = await QdrantVectorStore.fromExistingCollection(
-        embeddings,
-        {
-          url: process.env.QDRANT_URL || "http://localhost:6333",
-          collectionName: `user_${req.userId}`,
+        const vectorStore = await QdrantVectorStore.fromExistingCollection(
+          embeddings,
+          {
+            url: process.env.QDRANT_URL || "http://localhost:6333",
+            collectionName: `user_${req.userId}`,
+          }
+        );
+        const mustFilters: any[] = [
+          { key: "metadata.userId", match: { value: req.userId } }
+        ];
+
+        const shouldFilters: any[] = [];
+
+        if (hasPDFs) {
+          shouldFilters.push(
+            ...th.pdfId.map(id => ({
+              key: "metadata.pdfId",
+              match: { value: id.toString() }
+            }))
+          );
         }
-      );
-      const mustFilters: any[] = [
-        { key: "metadata.userId", match: { value: req.userId } }
-      ];
 
-      const shouldFilters: any[] = [];
+        if (hasYoutube) {
+          shouldFilters.push(
+            ...th.youtubeIds.map(id => ({
+              key: "metadata.videoId",
+              match: { value: id }
+            }))
+          );
+        }
 
-      // PDFs
-      if (hasPDFs) {
-        shouldFilters.push(
-          ...th.pdfId.map(id => ({
-            key: "metadata.pdfId",
-            match: { value: id.toString() }
-          }))
-        );
-      }
+        if (hasLinks) {
+          shouldFilters.push(
+            ...th.linkIds.map(id => ({
+              key: "metadata.linkId",
+              match: { value: id.toString() }
+            }))
+          );
+        }
 
-      // YouTube
-      if (hasYoutube) {
-        shouldFilters.push(
-          ...th.youtubeIds.map(id => ({
-            key: "metadata.videoId",
-            match: { value: id }
-          }))
-        );
-      }
+        const filter = {
+          must: mustFilters,
+          should: shouldFilters
+        };
+        const results = await vectorStore.similaritySearch(message, 6, filter);
 
-      //links
-      if (hasLinks) {
-        shouldFilters.push(
-          ...th.linkIds.map(id => ({
-            key: "metadata.linkId",
-            match: { value: id.toString() }
-          }))
-        );
-      }
-
-
-      const filter = {
-        must: mustFilters,
-        should: shouldFilters
-      };
-      const results = await vectorStore.similaritySearch(message, 6, filter);
-
-  
-
-      // 2️ System prompt
-      const contextText = results.map(r => r.pageContent).join("\n\n");
-      const SYSTEM_PROMPT = `
-          You are SecondBrain — a personal knowledge assistant.
+        const contextText = results.map(r => r.pageContent).join("\n\n");
+        const SYSTEM_PROMPT = `
+          You are SecondBrain - a personal knowledge assistant.
 
           Your job is to answer the user's question using the provided context, which may come from:
           - Uploaded PDFs
@@ -487,38 +486,40 @@ router.post("/chat1", authMiddleware,async (req, res) => {
           1. Always prioritize the provided context when answering.
           2. If the answer is clearly present in the context, use it directly.
           3. If the context is partially relevant, combine it with your general knowledge.
-          4. If the context does not contain the answer at all, answer using general knowledge — naturally and confidently.
+          4. If the context does not contain the answer at all, answer using general knowledge naturally and confidently.
           5. Never mention phrases like "based on the context", "context not provided", or "the document says".
-          6. If multiple sources are present, synthesize them into a single clear answer and complete answer.
-          7. Keep responses clear, concise, and helpful — like a smart second brain.
+          6. If multiple sources are present, synthesize them into a single clear and complete answer.
+          7. Keep responses clear, concise, and helpful.
 
           Context:
           ${contextText}
         `;
 
+        const model = new ChatGoogleGenerativeAI({
+          model: "gemini-2.5-flash",
+          apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
+        });
 
-      // 3 Gemini chat
-      const model = new ChatGoogleGenerativeAI({
-        model: "gemini-2.5-flash",
-        apiKey: process.env.GEMINI_RAG_KEY || process.env.GEMINI_API_KEY || "",
-      });
+        const response = await model.invoke([
+          ["system", SYSTEM_PROMPT],
+          ["human", message],
+        ]);
 
-      const response = await model.invoke([
-        ["system", SYSTEM_PROMPT],
-        ["human", message],
-      ]);
-
-       if (typeof response.content === "string") {
-        assistantReply = response.content;
-      } else if (Array.isArray(response.content)) {
-        assistantReply = response.content
-           .map((block) => ("text" in block ? block.text : ""))
-          .join("");
-      } else {
-        assistantReply = "Sorry, I couldn’t generate a proper response.";
+        if (typeof response.content === "string") {
+          assistantReply = response.content;
+        } else if (Array.isArray(response.content)) {
+          assistantReply = response.content
+            .map((block) => ("text" in block ? block.text : ""))
+            .join("");
+        } else {
+          assistantReply = "Sorry, I couldn't generate a proper response.";
+        }
+      } catch (ragError) {
+        console.error("RAG flow failed, falling back to base model:", ragError);
+        assistantReply = await generateOpenAiResponse(message);
       }
     } else {
-      console.log("No PDFs/Youtube → using standard OpenAI reply");
+      console.log("No PDFs/Youtube -> using standard OpenAI reply");
       assistantReply = await generateOpenAiResponse(message);
     }
 
@@ -536,3 +537,5 @@ router.post("/chat1", authMiddleware,async (req, res) => {
 
 
 export default router;
+
+

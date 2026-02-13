@@ -39,17 +39,27 @@ const razorpayClient =
       })
     : null;
 
+const mongoUrl = process.env.MONGO_URL;
+if (!mongoUrl) {
+  console.error("MONGO_URL is not configured.");
+  process.exit(1);
+}
 
-mongoose.connect(process.env.MONGO_URL!).then(() => {
+mongoose.connect(mongoUrl).then(() => {
     console.log("MongoDB connected");
   })
   .catch((err) => {
     console.error(" MongoDB connection error:", err);
   });
 
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173',  // Allow Vite frontend
-  credentials: true  // Optional: if you send cookies or headers
+  origin: allowedOrigins,
+  credentials: true
 }));
 
 app.post("/api/v1/signup", async (req: Request, res: Response) => {
@@ -68,7 +78,6 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
       });
     }
     const {username,email,password}=validation.data;
-    let errorThrown=false;
     const hashedPassword=await bcrypt.hash(password,5);
     
     const newUser=await UserModel.create({
@@ -85,7 +94,7 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
       email: newUser.email
     });
   }catch(e){
-    res.status(411).json({
+    res.status(409).json({
       message:"User already exists"
     })
   }
@@ -141,7 +150,6 @@ app.post("/api/v1/content",authMiddleware, async (req, res) => {
       link,
       type,
       title:req.body.title,
-      //@ts-ignore
       userId:req.userId,
       tags:[]
     })
@@ -155,14 +163,18 @@ app.post("/api/v1/content",authMiddleware, async (req, res) => {
 });
 
 app.get("/api/v1/content",authMiddleware, async (req, res) => {
-    //@ts-ignore  
-    const userId=req.userId;
-    const content=await ContentModel.find({
-        userId:userId
-    }).populate("userId","username")              //to get the whole or what you need info of the user populate used
-    res.json({
-      content
-    })
+    try {
+      const userId=req.userId;
+      const content=await ContentModel.find({
+          userId:userId
+      }).populate("userId","username");
+      res.json({
+        content
+      });
+    } catch (error) {
+      console.error("Fetch content failed:", error);
+      res.status(500).json({ message: "Failed to fetch content" });
+    }
 
 });
 
@@ -208,18 +220,16 @@ app.post("/api/v1/brain/share",authMiddleware, async (req, res) => {
     const share =req.body.share;
     if(share==true){
      const existingLink=await LinkModel.findOne({
-      //@ts-ignore
       userId:req.userId
      }
      )
      if(existingLink){
-        res.json({
+        return res.json({
         hash:existingLink.hash
       })
      }
       const hash=random(10);
       await LinkModel.create({
-        //@ts-ignore
         userId:req.userId,
         hash:hash
       })
@@ -230,7 +240,6 @@ app.post("/api/v1/brain/share",authMiddleware, async (req, res) => {
     
   }else{
        await  LinkModel.deleteOne({
-          //@ts-ignore
           userId:req.userId
         });
          res.json({
@@ -252,12 +261,12 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
       hash
   });
   if(!link) {
-    res.status(411).json({
+    res.status(404).json({
       message:"Sorry incorrect input"
     });
     return;
   }
-  const content=await ContentModel.findOne({
+  const content=await ContentModel.find({
       userId:link.userId
   });
   const user=await UserModel.findOne({
@@ -265,7 +274,7 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
   });
 
    if(!user) {
-    res.status(411).json({
+    res.status(404).json({
       message:"User not found"
     });
     return;
@@ -283,11 +292,14 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
 
 app.post("/api/v1/chat", async(req,res)=>{
     const {message} =req.body;
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ message: "Message is required" });
+    }
     
     try{
       const assiantReply= await generateOpenAiResponse(message);
       console.log(assiantReply);
-      res.json({reply:assiantReply});
+      res.json({reply:assiantReply || "Unable to generate response right now."});
     }catch(e){
       res.status(500).json({message:"Error will sending message"});
     }

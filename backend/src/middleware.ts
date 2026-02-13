@@ -16,8 +16,6 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, JWT_PASSWORD) as { id: string };
 
-    // Attach userId to request object
-    //@ts-ignore
     req.userId = decoded.id;
 
     next();
