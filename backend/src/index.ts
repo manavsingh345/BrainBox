@@ -76,6 +76,8 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
         email:email,
         password:hashedPassword,
         isUpgraded: false,
+        currentPlan: "Starter",
+        billingCycle: "yearly",
     });
     res.json({
       message: "User is signed up",
@@ -117,6 +119,8 @@ app.post("/api/v1/signin",async (req, res) => {
       username: existingUser.username,
       email: existingUser.email,
       isUpgraded: Boolean((existingUser as any).isUpgraded),
+      currentPlan: (existingUser as any).currentPlan || "Starter",
+      billingCycle: (existingUser as any).billingCycle || "yearly",
       });
 
     }else{
@@ -334,6 +338,29 @@ app.post("/api/v1/payments/razorpay/order", authMiddleware, async (req: Request,
   }
 });
 
+app.get("/api/v1/user/plan", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await UserModel.findById(req.userId).select("currentPlan isUpgraded billingCycle upgradedAt");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({
+      currentPlan: (user as any).currentPlan || "Starter",
+      isUpgraded: Boolean((user as any).isUpgraded),
+      billingCycle: (user as any).billingCycle || "yearly",
+      upgradedAt: (user as any).upgradedAt || null,
+    });
+  } catch (error) {
+    console.error("Failed to fetch current plan:", error);
+    return res.status(500).json({ message: "Failed to fetch current plan" });
+  }
+});
+
 app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!razorpayKeySecret) {
@@ -344,8 +371,8 @@ app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request
       razorpay_order_id: z.string().min(1),
       razorpay_payment_id: z.string().min(1),
       razorpay_signature: z.string().min(1),
-      planName: z.string().optional(),
-      billingCycle: z.enum(["monthly", "yearly"]).optional(),
+      planName: z.enum(["Starter", "Pro", "Team"]),
+      billingCycle: z.enum(["monthly", "yearly"]),
     });
 
     const validation = schema.safeParse(req.body);
@@ -356,7 +383,7 @@ app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request
       });
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validation.data;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planName, billingCycle } = validation.data;
 
     const expectedSignature = crypto
       .createHmac("sha256", razorpayKeySecret)
@@ -372,13 +399,17 @@ app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request
     }
 
     await UserModel.findByIdAndUpdate(req.userId, {
-      isUpgraded: true,
+      isUpgraded: planName !== "Starter",
       upgradedAt: new Date(),
+      currentPlan: planName,
+      billingCycle,
     });
 
     return res.json({
       success: true,
-      isUpgraded: true,
+      isUpgraded: planName !== "Starter",
+      currentPlan: planName,
+      billingCycle,
     });
   } catch (error) {
     console.error("Payment verification failed:", error);

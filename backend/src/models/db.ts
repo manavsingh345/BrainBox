@@ -6,7 +6,9 @@ const UserSchema=new Schema({
     email: { type: String, required: true, unique: true },
     password:String,
     isUpgraded: { type: Boolean, default: false },
-    upgradedAt: { type: Date }
+    upgradedAt: { type: Date },
+    currentPlan: { type: String, enum: ["Starter", "Pro", "Team"], default: "Starter" },
+    billingCycle: { type: String, enum: ["monthly", "yearly"], default: "yearly" }
 });
 
 const ContentSchema=new Schema({
