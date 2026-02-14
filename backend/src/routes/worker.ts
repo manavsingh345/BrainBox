@@ -204,6 +204,7 @@ const worker = new Worker(
     try {
       vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
         url: process.env.QDRANT_URL || "http://localhost:6333",
+        apiKey: process.env.QDRANT_API_KEY || undefined,
         collectionName,
       });
     } catch (err) {
