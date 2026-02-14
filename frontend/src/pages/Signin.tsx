@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../component/UI/Button";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
@@ -9,22 +9,28 @@ export  function Signin(){
      const emailRef=useRef<HTMLInputElement>(null);
      const passwordRef=useRef<HTMLInputElement>(null);
      const navigate=useNavigate();
+     const [errorMessage, setErrorMessage] = useState("");
+     const [isSubmitting, setIsSubmitting] = useState(false);
+
    async function signin(){
+        if (isSubmitting) return;
+        setErrorMessage("");
         const email=emailRef.current?.value;
         const password=passwordRef.current?.value;
         if (!email || !password) {
-            alert("Please enter email and password.");
+            setErrorMessage("Please enter both email and password.");
             return;
         }
 
         try {
+            setIsSubmitting(true);
             const response=await axios.post(`${BACKEND_URL}/api/v1/signin`,{
                 email,
                 password
             })
             const jwt=response.data.token;
             if (!jwt) {
-                alert("Sign in failed. Please try again.");
+                setErrorMessage("Sign in failed. Please try again.");
                 return;
             }
             localStorage.setItem("token",jwt);
@@ -38,7 +44,14 @@ export  function Signin(){
 
             navigate("/dashboard");
         } catch (error) {
-            alert("Sign in failed. Please check your credentials.");
+            if (axios.isAxiosError(error)) {
+              const backendMessage = error.response?.data?.message || error.response?.data?.error;
+              setErrorMessage(backendMessage || "Sign in failed. Please check your credentials.");
+            } else {
+              setErrorMessage("Sign in failed. Please check your credentials.");
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     }
      return (
@@ -87,7 +100,12 @@ export  function Signin(){
                     className="w-full pl-10 pr-4 py-2 bg-black border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
                 />
             </div>
-            <Button onClick={signin} text="Continue" variant="primary" size="md" fullWidth={true} loading={false}/>
+            {errorMessage && (
+              <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {errorMessage}
+              </div>
+            )}
+            <Button onClick={signin} text="Continue" variant="primary" size="md" fullWidth={true} loading={isSubmitting}/>
              <p className="text-sm text-center mt-6 text-gray-400">
           Don't have an account yet? <Link to="/signup" className="underline">Sign up</Link>
         </p>

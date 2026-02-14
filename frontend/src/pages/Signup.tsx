@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
@@ -12,19 +12,30 @@ export function Signup() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const signup = async () => {
+    if (isSubmitting) return;
+    setErrorMessage("");
+
     const username = usernameRef.current?.value;
     const email = emailRef.current?.value;
     const password = passwordRef.current?.value;
     const confirmPassword = confirmPasswordRef.current?.value;
 
+    if (!username || !email || !password || !confirmPassword) {
+      setErrorMessage("Please fill in all required fields.");
+      return;
+    }
+
     if (password !== confirmPassword) {
-      alert("Passwords do not match");
+      setErrorMessage("Passwords do not match.");
       return;
     }
 
     try {
+      setIsSubmitting(true);
       await axios.post(`${BACKEND_URL}/api/v1/signup`, {
         username,
         email,
@@ -32,7 +43,14 @@ export function Signup() {
       });
       navigate("/signin");
     } catch (error) {
-      alert("Signup failed. Please try again.");
+      if (axios.isAxiosError(error)) {
+        const backendMessage = error.response?.data?.message || error.response?.data?.error;
+        setErrorMessage(backendMessage || "Signup failed. Please try again.");
+      } else {
+        setErrorMessage("Signup failed. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -130,7 +148,12 @@ export function Signup() {
             </label>
           </div>
 
-          <Button onClick={signup} text="Continue" variant="primary" size="md" fullWidth={true} loading={false}/>
+          {errorMessage && (
+            <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              {errorMessage}
+            </div>
+          )}
+          <Button onClick={signup} text="Continue" variant="primary" size="md" fullWidth={true} loading={isSubmitting}/>
        
 
         <p className="text-sm text-center mt-6 text-gray-400">

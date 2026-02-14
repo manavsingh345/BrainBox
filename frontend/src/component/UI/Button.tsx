@@ -11,7 +11,7 @@ export interface ButtonProps {
 }
 
 const variantStyles = {
-    "primary": "bg-blue-500 text-white hover:bg-blue-700 active:bg-blue-600 shadow-md hover:shadow-lg",
+    "primary": "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-md hover:shadow-lg",
     "secondary": "bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400 shadow-sm hover:shadow-md",
 };
 
@@ -21,7 +21,7 @@ const sizeStyle = {
     "lg": "py-3 px-6 text-lg",
 };
 
-const defaultStyle = "rounded-lg flex items-center justify-center cursor-pointer font-medium transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500";
+const defaultStyle = "rounded-lg flex items-center justify-center cursor-pointer font-medium transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary";
 
 export const Button = (props: ButtonProps) => {
   return (

@@ -52,7 +52,7 @@ export const CTASection = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button2 variant="hero" size="xl" className="group" onClick={handleGetStarted}>
+                <Button2 variant="hero" size="xl" className="group cursor-pointer" onClick={handleGetStarted} >
                   <Sparkles className="w-5 h-5" />
                   Get Started Free
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

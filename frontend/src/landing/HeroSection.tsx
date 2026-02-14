@@ -3,9 +3,21 @@ import { Button2 } from "../component/UI/Button2";
 import { NeuralNetwork } from "./NeuralNetwork";
 import { Brain, Sparkles, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export const HeroSection = () => {
   const navigate=useNavigate();
+  const [showDemo, setShowDemo] = useState(false);
+
+  useEffect(() => {
+    if (!showDemo) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowDemo(false);
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [showDemo]);
+
   const handleStartBuilding = () => {
     const isLoggedIn = Boolean(localStorage.getItem("token"));
     navigate(isLoggedIn ? "/dashboard" : "/signup");
@@ -101,12 +113,12 @@ export const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Button2 variant="hero" size="xl" className="group" onClick={handleStartBuilding}>
-              <Brain className="w-5 h-5" />
+            <Button2 variant="hero" size="xl" className="group cursor-pointer" onClick={handleStartBuilding} >
+              <Brain className="w-5 h-5 " />
               Start Building Your Brain
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button2>
-            <Button2 variant="heroOutline" size="xl">
+            <Button2 variant="heroOutline" size="xl" onClick={() => setShowDemo(true)} className="cursor-pointer">
               Watch Demo
             </Button2>
           </motion.div>
@@ -151,6 +163,37 @@ export const HeroSection = () => {
           />
         </div>
       </motion.div>
+
+      {showDemo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setShowDemo(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl border border-border bg-card/95 p-3 text-foreground shadow-2xl backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium">BrainBox Demo</p>
+              <button
+                type="button"
+                className="rounded-md border cursor-pointer border-border px-2 py-1 text-xs text-foreground hover:bg-secondary"
+                onClick={() => setShowDemo(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-xl bg-surface">
+              <video
+                controls
+                autoPlay
+                className="w-full h-auto max-h-[70vh]"
+                src="https://res.cloudinary.com/dmtktd1wr/video/upload/v1771043917/Untitled_video_-_Made_with_Clipchamp_1_zjhbim.mp4"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
