@@ -17,9 +17,13 @@ import path from "path";
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGO_URL!)
-  .then(() => console.log("Worker connected to DB"))
-  .catch(err => console.error("Worker DB error:", err));
+if (mongoose.connection.readyState === 0) {
+  mongoose.connect(process.env.MONGO_URL!)
+    .then(() => console.log("Worker connected to DB"))
+    .catch(err => console.error("Worker DB error:", err));
+} else {
+  console.log("Worker using existing DB connection");
+}
 
 const worker = new Worker(
   "file-upload-queue",

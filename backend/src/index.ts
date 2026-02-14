@@ -431,6 +431,16 @@ app.post("/api/v1/payments/razorpay/verify", authMiddleware, async (req: Request
 
 app.use("/api/v1", router);
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+if (process.env.RUN_WORKER === "true") {
+  try {
+    await import("./routes/worker.js");
+    console.log("Background worker started in web service process");
+  } catch (error) {
+    console.error("Failed to start background worker in web service process:", error);
+  }
+}
+
+const port = Number(process.env.PORT || 3000);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
