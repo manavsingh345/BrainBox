@@ -62,5 +62,5 @@ it is a context-aware personal knowledge engine built on your own data.
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/your-username/BrainBox.git
+git clone https://github.com/manavsingh345/BrainBox.git
 cd BrainBox
