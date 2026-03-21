@@ -1,9 +1,11 @@
 import "./Sidebar1.css"
 import { useContext, useEffect } from "react"
+import { useAuth } from "@clerk/react";
 import { MyContext } from "./Context"
 import {v1 as uuidv1} from "uuid";
 import { Brain } from "lucide-react";
 import { BACKEND_URL } from "../config";
+import { getAuthorizationHeader } from "../lib/clerk";
 
 interface Thread {
   threadId: string;
@@ -12,12 +14,13 @@ interface Thread {
   hasPDF?: boolean;
 }
 export default function Sidebar1(){
+    const { getToken, isSignedIn } = useAuth();
 
     const {allThreads,setAllThreads,currThreadId,setPrompt,setnewChat,setReply,setcurrThreadId,setprevChats} = useContext(MyContext);
 
     const getAllThreads = async () => {
         try{
-            const token=localStorage.getItem("token") ?? "";
+            const token = await getAuthorizationHeader(getToken);
             const response=await fetch(`${BACKEND_URL}/api/v1/thread`,{
                 headers:{
                     "Authorization": token
@@ -38,8 +41,12 @@ export default function Sidebar1(){
         }
     }
     useEffect(()=>{
-        getAllThreads();
-    },[currThreadId]);
+        if (!isSignedIn) {
+            setAllThreads([]);
+            return;
+        }
+        void getAllThreads();
+    },[currThreadId, getToken, isSignedIn, setAllThreads]);
 
     const NewChat =() => {
         setnewChat(true);
@@ -52,7 +59,7 @@ export default function Sidebar1(){
     const changeThread= async (newthreadId:string)=>{
         setcurrThreadId(newthreadId);
         try{
-            const token=localStorage.getItem("token") ?? "";
+            const token = await getAuthorizationHeader(getToken);
             const response=await fetch(`${BACKEND_URL}/api/v1/thread/${newthreadId}`,{
                 headers:{
                     "Authorization": token
@@ -71,7 +78,7 @@ export default function Sidebar1(){
     }
     const deleteThread= async(threadId:string)=>{
         try{
-            const token=localStorage.getItem("token") ?? "";
+            const token = await getAuthorizationHeader(getToken);
             const response = await fetch(`${BACKEND_URL}/api/v1/thread/${threadId}`,{headers:{
                 "Authorization": token
             },method:"DELETE"});

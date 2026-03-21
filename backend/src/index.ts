@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import {z} from "zod";
 import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import {ContentModel, UserModel,LinkModel} from "./models/db.js";
@@ -61,6 +62,7 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true
 }));
+app.use(clerkMiddleware());
 
 app.post("/api/v1/signup", async (req: Request, res: Response) => {
     //left zod validation,hashing

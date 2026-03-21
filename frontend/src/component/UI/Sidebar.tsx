@@ -7,6 +7,7 @@ import ChatIcon from "../../icons/ChatIcon";
 import { useNavigate } from "react-router-dom";
 import SidebarIcon from "../../icons/SidebarIcon";
 import { motion } from "framer-motion";
+import { useClerk } from "@clerk/react";
 // import BrainIcon from "../../icons/BrainIcon";
 import { Brain } from "lucide-react";
 
@@ -29,6 +30,7 @@ export function Sidebar({
   setSidebaropen,
 }: SidebarProps) {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
   const toggleSidebar = () => setSidebaropen(!sidebaropen);
 
   return (
@@ -112,10 +114,8 @@ export function Sidebar({
             </div>
 
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                navigate("/signin");
+              onClick={async () => {
+                await signOut(() => navigate("/signin"));
               }}
               className="mt-3 w-full rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
             >

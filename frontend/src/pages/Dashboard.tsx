@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth, useUser } from '@clerk/react';
 import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../component/UI/Button';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -15,21 +16,19 @@ import ChatWindow from './ChatWindow';
 import { MyContext } from './Context';
 import { v1 as uuidv1 } from 'uuid';
 import ChatNavbar from './ChatNavbar';
+import { getAuthorizationHeader, getUserDisplayName } from '../lib/clerk';
 
 import './Dashboard.css';
 
 export function Dashboard() {
-  const safeParseJson = <T,>(raw: string | null): T | null => {
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return null;
-    }
-  };
-  const user = safeParseJson<{ username: string; email: string }>(
-    localStorage.getItem('user')
-  ) || undefined;
+  const { getToken, isSignedIn } = useAuth();
+  const { user: clerkUser } = useUser();
+  const user = clerkUser
+    ? {
+        username: getUserDisplayName(clerkUser),
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      }
+    : undefined;
   const [modelOpen, setModelOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Content | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,14 +55,19 @@ export function Dashboard() {
   const [sidebaropen, setSidebaropen] = useState(false);
 
   useEffect(() => {
-    fetchContents();
-  }, []);
+    if (!isSignedIn) {
+      setContents([]);
+      return;
+    }
+    void fetchContents();
+  }, [isSignedIn]);
 
   const fetchContents = async () => {
     try {
+      const authorization = await getAuthorizationHeader(getToken);
       const res = await axios.get(`${BACKEND_URL}/api/v1/content`, {
         headers: {
-          Authorization: localStorage.getItem('token'),
+          Authorization: authorization,
         },
       });
       setContents(res.data.content);
@@ -74,9 +78,10 @@ export function Dashboard() {
 
   const handleDelete = async (contentId: string) => {
     try {
+      const authorization = await getAuthorizationHeader(getToken);
       await axios.delete(`${BACKEND_URL}/api/v1/content/${contentId}`, {
         headers: {
-          Authorization: localStorage.getItem('token'),
+          Authorization: authorization,
         },
       });
       setContents((prev) => prev.filter((item) => item._id !== contentId));
@@ -221,12 +226,13 @@ export function Dashboard() {
                     <Button
                       onClick={async () => {
                         try {
+                          const authorization = await getAuthorizationHeader(getToken);
                           const response = await axios.post(
                             `${BACKEND_URL}/api/v1/brain/share`,
                             { share: true },
                             {
                               headers: {
-                                Authorization: localStorage.getItem('token'),
+                                Authorization: authorization,
                               },
                             }
                           );

@@ -5,7 +5,6 @@ import generateOpenAiResponse from "../utils/openai.js";
 import { authMiddleware } from "../middleware.js";
 import 'dotenv/config';
 import multer from 'multer';
-import { Queue } from "bullmq";
 import { GoogleGenerativeAIEmbeddings,ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import cloudinary from "../uploadCloudinary.js";
@@ -16,13 +15,12 @@ import PDFfile from "../models/PDFfile.js";
 import Linkfile from "../models/Linkfile.js";
 import * as cheerio from "cheerio";
 import { UserModel } from "../models/db.js";
+import { getUploadQueue } from "../queue.js";
 
-const queue=new Queue("file-upload-queue",{
-  connection: {
-      host: process.env.REDIS_HOST || "localhost",
-      port: Number(process.env.REDIS_PORT || 6379)
-    }
-});
+const addQueueJob = async (payload: Record<string, unknown>) => {
+  const queue = getUploadQueue();
+  return queue.add("file-upload-queue", payload);
+};
 
 const requireUpgrade = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
@@ -175,13 +173,20 @@ router.post('/upload/pdf', authMiddleware, requireUpgrade, upload.single('pdf'),
     }
 
     // 4 Send job to worker
-    await queue.add("file-upload-queue", {
-        type: "pdf",
-        pdfId: pdf._id.toString(),
-        userId,
-        filename: originalName,
-        path: cloudUpload.secure_url
-    });
+    try {
+      await addQueueJob({
+          type: "pdf",
+          pdfId: pdf._id.toString(),
+          userId,
+          filename: originalName,
+          path: cloudUpload.secure_url
+      });
+    } catch (queueError) {
+      console.error("Queue unavailable for PDF upload:", queueError);
+      return res.status(503).json({
+        error: "Background processing is unavailable. Configure Redis for uploads.",
+      });
+    }
 
 
     return res.json({
@@ -270,12 +275,19 @@ try {
 });
 
 
-    await queue.add("file-upload-queue", {
-      type: "youtube",
-      videoId,
-      text: fullText,
-      userId: req.userId
-    });
+    try {
+      await addQueueJob({
+        type: "youtube",
+        videoId,
+        text: fullText,
+        userId: req.userId
+      });
+    } catch (queueError) {
+      console.error("Queue unavailable for YouTube upload:", queueError);
+      return res.status(503).json({
+        message: "Background processing is unavailable. Configure Redis for uploads",
+      });
+    }
 
     res.json({
       success: true,
@@ -352,12 +364,19 @@ router.post("/upload/link", authMiddleware, requireUpgrade, async (req, res) => 
     await th.save();
 
     // 5 Push job to queue
-    await queue.add("file-upload-queue", {
-      type: "link",
-      text,
-      linkId: link._id,
-      userId
-    });
+    try {
+      await addQueueJob({
+        type: "link",
+        text,
+        linkId: link._id,
+        userId
+      });
+    } catch (queueError) {
+      console.error("Queue unavailable for link upload:", queueError);
+      return res.status(503).json({
+        error: "Background processing is unavailable. Configure Redis for uploads",
+      });
+    }
 
     res.json({
       success: true,

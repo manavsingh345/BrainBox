@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/react";
 import { Button2 } from "../component/UI/Button2";
 import { NeuralNetwork } from "./NeuralNetwork";
 import { Brain, Sparkles, ArrowRight } from "lucide-react";
@@ -7,6 +8,7 @@ import { useEffect, useState } from "react";
 
 export const HeroSection = () => {
   const navigate=useNavigate();
+  const { isSignedIn } = useAuth();
   const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
@@ -19,8 +21,7 @@ export const HeroSection = () => {
   }, [showDemo]);
 
   const handleStartBuilding = () => {
-    const isLoggedIn = Boolean(localStorage.getItem("token"));
-    navigate(isLoggedIn ? "/dashboard" : "/signup");
+    navigate(isSignedIn ? "/dashboard" : "/signup");
   };
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden ">

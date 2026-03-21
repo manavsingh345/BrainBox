@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useAuth, useClerk } from "@clerk/react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { Check, Brain, ArrowRight } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button2 } from "../component/UI/Button2";
 import { BACKEND_URL } from "../config";
+import { getAuthorizationHeader } from "../lib/clerk";
 
 type BillingCycle = "monthly" | "yearly";
 
@@ -119,26 +121,15 @@ function loadRazorpayCheckoutScript() {
   });
 }
 
-function safeParseJson<T>(raw: string | null): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
 export default function Pricing() {
   const [isYearly, setIsYearly] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
-  const [currentPlan, setCurrentPlan] = useState<string>(() => {
-    const parsed = safeParseJson<{ currentPlan?: string }>(localStorage.getItem("user"));
-    return parsed?.currentPlan || "Starter";
-  });
+  const [currentPlan, setCurrentPlan] = useState<string>("Starter");
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSignedIn, getToken } = useAuth();
+  const { signOut } = useClerk();
 
   useEffect(() => {
     const reason = (location.state as { reason?: string } | null)?.reason;
@@ -157,52 +148,35 @@ export default function Pricing() {
   }, [notice]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!isSignedIn) {
+      setCurrentPlan("Starter");
+      return;
+    }
 
-    axios
-      .get(`${BACKEND_URL}/api/v1/user/plan`, {
-        headers: {
-          Authorization: token,
-        },
-      })
-      .then((res) => {
-        const planFromApi = res.data?.currentPlan || "Starter";
-        setCurrentPlan(planFromApi);
-
-        const rawUser = localStorage.getItem("user");
-        if (rawUser) {
-          const parsed = safeParseJson<Record<string, unknown>>(rawUser) || {};
-          localStorage.setItem("user", JSON.stringify({
-            ...parsed,
-            currentPlan: planFromApi,
-            isUpgraded: Boolean(res.data?.isUpgraded),
-            billingCycle: res.data?.billingCycle || parsed?.billingCycle || "yearly",
-          }));
-        }
-      })
-      .catch(() => {
+    const fetchPlan = async () => {
+      try {
+        const authorization = await getAuthorizationHeader(getToken);
+        const res = await axios.get(`${BACKEND_URL}/api/v1/user/plan`, {
+          headers: {
+            Authorization: authorization,
+          },
+        });
+        setCurrentPlan(res.data?.currentPlan || "Starter");
+      } catch {
         // Silent fail keeps pricing page usable even if user info fetch fails.
-      });
-  }, []);
+      }
+    };
 
-  useEffect(() => {
-    const onStorageUpdate = () => setIsLoggedIn(Boolean(localStorage.getItem("token")));
-    window.addEventListener("storage", onStorageUpdate);
-    return () => window.removeEventListener("storage", onStorageUpdate);
-  }, []);
+    void fetchPlan();
+  }, [getToken, isSignedIn]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
     setCurrentPlan("Starter");
-    navigate("/");
+    await signOut(() => navigate("/"));
   };
 
   const handlePlanAction = async (plan: Plan) => {
     const billingCycle: BillingCycle = isYearly ? "yearly" : "monthly";
-    const token = localStorage.getItem("token") ?? "";
     const isActivePlan = currentPlan === plan.name;
 
     if (isActivePlan) {
@@ -211,17 +185,18 @@ export default function Pricing() {
     }
 
     if (plan.name === "Starter") {
-      navigate("/signup");
+      navigate(isSignedIn ? "/dashboard" : "/signup");
       return;
     }
 
     try {
-      if (!token) {
+      if (!isSignedIn) {
         navigate("/signin");
         return;
       }
 
       setProcessingPlan(plan.name);
+      const token = await getAuthorizationHeader(getToken);
 
       const checkoutLoaded = await loadRazorpayCheckoutScript();
       if (!checkoutLoaded) {
@@ -274,16 +249,6 @@ export default function Pricing() {
               }
             );
 
-            const rawUser = localStorage.getItem("user");
-            if (rawUser) {
-              const parsed = safeParseJson<Record<string, unknown>>(rawUser) || {};
-              localStorage.setItem("user", JSON.stringify({
-                ...parsed,
-                isUpgraded: plan.name !== "Starter",
-                currentPlan: plan.name,
-                billingCycle,
-              }));
-            }
             setCurrentPlan(plan.name);
 
             setNotice({
@@ -336,12 +301,12 @@ export default function Pricing() {
             BrainBox
           </button>
           <div className="flex items-center gap-3">
-            {isLoggedIn ? (
+            {isSignedIn ? (
               <>
                 <Button2 variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
                   Dashboard
                 </Button2>
-                <Button2 variant="default" size="sm" onClick={handleLogout}>
+                <Button2 variant="default" size="sm" onClick={() => void handleLogout()}>
                   Logout
                 </Button2>
               </>

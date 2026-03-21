@@ -130,6 +130,7 @@
 // <div className="relative flex items-center py-4">
  //  <div className={`absolute left-1/2 -translate-x-1/2 ${sidebaropen ? "min-w-5xl" : "min-w-2xl"}`}></div>
 import { useRef, useState } from 'react';
+import { useAuth } from '@clerk/react';
 import { CrossIcon } from '../../icons/CrossIcon.tsx';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config.ts';
@@ -138,6 +139,7 @@ import { TwitterIcon } from '../../icons/TwitterIcon.tsx';
 import { Document } from '../../icons/Document.tsx';
 import { LinkIcon } from '../../icons/LinkIcon.tsx';
 import { SubmitIcon } from '../../icons/SubmitIcon.tsx';
+import { getAuthorizationHeader } from '../../lib/clerk.ts';
 
 enum ContentType {
   Youtube = "youtube",
@@ -182,6 +184,7 @@ export function CreateContentModel({ open, onClose }: CreateContentModelProps) {
     const titleRef = useRef<HTMLInputElement | null>(null);
     const linkRef = useRef<HTMLInputElement | null>(null);
     const textRef= useRef<HTMLTextAreaElement | null>(null);
+    const { getToken } = useAuth();
 
   const [type,setType]=useState(ContentType.Youtube);
   async function addContent() {
@@ -192,13 +195,14 @@ export function CreateContentModel({ open, onClose }: CreateContentModelProps) {
       : linkRef.current?.value;
 
   try {
+    const authorization = await getAuthorizationHeader(getToken);
     await axios.post(`${BACKEND_URL}/api/v1/content`, {
       link,
       title,
       type
     }, {
       headers: {
-        "Authorization": localStorage.getItem("token")
+        Authorization: authorization
       }
     });
     onClose();

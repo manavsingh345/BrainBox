@@ -1,13 +1,14 @@
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/react";
 import { Button2 } from "../component/UI/Button2";
 import { ArrowRight, Brain, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const CTASection = () => {
   const navigate = useNavigate();
+  const { isSignedIn } = useAuth();
   const handleGetStarted = () => {
-    const isLoggedIn = Boolean(localStorage.getItem("token"));
-    navigate(isLoggedIn ? "/dashboard" : "/signup");
+    navigate(isSignedIn ? "/dashboard" : "/signup");
   };
 
   return (

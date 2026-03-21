@@ -1,4 +1,5 @@
 import { useContext, useState, useEffect } from "react";
+import { useAuth } from "@clerk/react";
 import Chat1 from "./Chat1";
 import "./ChatWindow.css";
 import { MyContext } from "./Context";
@@ -6,10 +7,12 @@ import { RingLoader } from "react-spinners";
 import Sidebar1 from "./Sidebar1";
 import { useNavigate } from "react-router-dom";
 import { BACKEND_URL } from "../config";
+import { getAuthorizationHeader } from "../lib/clerk";
 
 export default function ChatWindow() {
   const { prompt, setPrompt,setReply, currThreadId,setprevChats,setnewChat} = useContext(MyContext);
   const navigate = useNavigate();
+  const { getToken } = useAuth();
 
   const [loader, setLoader] = useState<boolean>(false);
   const [contextItems, setContextItems] = useState<
@@ -20,18 +23,6 @@ export default function ChatWindow() {
   const [showLinkInput, setShowLinkInput] = useState<null | "youtube" | "link">(null);
   const [tempLink, setTempLink] = useState("");
   const [notice, setNotice] = useState<{ type: "info" | "error"; message: string } | null>(null);
-
-
-  const token = localStorage.getItem("token") ?? "";
-
-  const safeParseJson = <T,>(raw: string | null): T | null => {
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return null;
-    }
-  };
 
   const parseJsonResponse = async (response: Response) => {
     const text = await response.text();
@@ -66,15 +57,8 @@ export default function ChatWindow() {
   }, [currThreadId]);
 
   const ensureUploadAccess = () => {
-    const parsedUser = safeParseJson<{ isUpgraded?: boolean }>(localStorage.getItem("user"));
-    const hasUpgrade = Boolean(parsedUser?.isUpgraded);
-
-    if (hasUpgrade) return true;
-
     setShowMenu(false);
-    setShowLinkInput(null);
-    navigate("/pricing", { state: { reason: "upgrade_required" } });
-    return false;
+    return true;
   };
 
   // CHAT 
@@ -91,6 +75,7 @@ export default function ChatWindow() {
     setnewChat(false);
 
     try {
+      const token = await getAuthorizationHeader(getToken);
       const response = await fetch(`${BACKEND_URL}/api/v1/chat1`, {
         method: "POST",
         headers: {
@@ -142,6 +127,7 @@ export default function ChatWindow() {
       formData.append("threadId", currThreadId);
 
       try {
+      const token = await getAuthorizationHeader(getToken);
       const response = await fetch(
           `${BACKEND_URL}/api/v1/upload/pdf`,
           {
@@ -187,6 +173,7 @@ const uploadYoutubeByUrl = async (url: string) => {
 
   try {
     setLoader(true);
+    const token = await getAuthorizationHeader(getToken);
 
     const response = await fetch(`${BACKEND_URL}/api/v1/youtube`, {
       method: "POST",
@@ -230,6 +217,7 @@ const uploadLinkByUrl = async (url: string) => {
 
   try {
     setLoader(true);
+    const token = await getAuthorizationHeader(getToken);
 
     const res = await fetch(`${BACKEND_URL}/api/v1/upload/link`, {
       method: "POST",

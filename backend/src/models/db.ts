@@ -3,6 +3,7 @@ import mongoose,{model,Schema, Types} from "mongoose";
 
 const UserSchema=new Schema({
     username:{type:String,unique:true},
+    clerkId: { type: String, unique: true, sparse: true },
     email: { type: String, required: true, unique: true },
     password:String,
     isUpgraded: { type: Boolean, default: false },
