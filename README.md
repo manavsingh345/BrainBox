@@ -4,7 +4,7 @@
   
   AI-powered knowledge management and productivity system that helps users capture, organize, and retrieve information efficiently. From storing notes to managing ideas, BrainBox acts as your personal digital memory system built with scalable backend architecture.
 
-  [Live Demo](brainboxx.vercel.app) 
+  [Live Demo](https://brainboxx.vercel.app)
 </div>
 
 
