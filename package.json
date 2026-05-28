@@ -1,0 +1,30 @@
+{
+  "name": "mysecondbrain-monorepo",
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:packages": "turbo run build --filter=@mysecondbrain/common --filter=@mysecondbrain/db",
+    "build": "turbo run build",
+    "dev": "npm run build:packages && turbo run dev --parallel",
+    "dev:all": "npm run build:packages && turbo run dev dev:worker --parallel",
+    "dev:backend": "npm run build:packages && npm run dev --workspace @mysecondbrain/backend",
+    "dev:web": "npm run build:packages && npm run dev --workspace @mysecondbrain/web",
+    "dev:worker": "npm run build:packages && npm run dev:worker --workspace @mysecondbrain/backend",
+    "start": "npm run start --workspace @mysecondbrain/backend",
+    "start:web": "npm run start --workspace @mysecondbrain/web",
+    "start:worker": "npm run start:worker --workspace @mysecondbrain/backend",
+    "lint": "turbo run lint",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

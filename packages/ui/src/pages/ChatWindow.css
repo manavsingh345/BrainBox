@@ -1,0 +1,19 @@
+
+.inputBox {
+    max-width: 780px;
+}
+
+/* Textarea styles handled implicitly via Tailwind now */
+
+#submit { 
+    height: 35px;
+    width: 35px;
+    right: 15px;
+}
+
+
+.info {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    color: #b4b4b4;
+}
