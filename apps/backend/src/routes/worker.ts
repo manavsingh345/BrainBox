@@ -236,12 +236,13 @@ const worker = new Worker(
       }
 
       try {
-        docs = await loader.load();
+        const loadedDocs = await loader.load();
+        docs = loadedDocs;
         console.log("Parsed document pages:", {
           jobId: job.id,
           pdfId,
           filename,
-          pages: docs.length,
+          pages: loadedDocs.length,
         });
       } catch (err) {
         if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
