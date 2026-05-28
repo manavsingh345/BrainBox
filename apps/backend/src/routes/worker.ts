@@ -12,6 +12,23 @@ import { createDocumentEmbeddings, embedDocumentsSafely } from "../utils/rag.js"
 
 dotenv.config();
 
+const resolveWorkerConnection = () => {
+  const redisUrl = process.env.REDIS_URL?.trim();
+
+  if (redisUrl) {
+    return {
+      url: redisUrl,
+      maxRetriesPerRequest: null as null,
+    };
+  }
+
+  return {
+    host: process.env.REDIS_HOST || "localhost",
+    port: Number(process.env.REDIS_PORT || 6379),
+    maxRetriesPerRequest: null as null,
+  };
+};
+
 connectToDatabase(process.env.MONGO_URL || "")
   .then(() => console.log("Worker connected to DB"))
   .catch((err) => console.error("Worker DB error:", err));
@@ -381,10 +398,7 @@ const worker = new Worker(
   },
   {
     concurrency: 10,
-    connection: {
-      host: process.env.REDIS_HOST || "localhost",
-      port: Number(process.env.REDIS_PORT || 6379),
-    },
+    connection: resolveWorkerConnection(),
   }
 );
 
